@@ -1332,9 +1332,12 @@ void Scenery::die(GameState &state, bool forced)
 		}
 		this->tileObject->removeFromMap();
 		this->tileObject.reset();
-		state.totalScore.cityDamage -= type->value;
-		state.weekScore.cityDamage -= type->value;
 		this->destroyed = true;
+		if (city.id != "CITYMAP_ALIEN")
+		{
+			state.totalScore.cityDamage -= type->value;
+			state.weekScore.cityDamage -= type->value;
+		}
 		return;
 	}
 	if (!forced && type->damagedTile)
@@ -1411,8 +1414,11 @@ void Scenery::die(GameState &state, bool forced)
 		{
 			building->buildingPartChange(state, initialPosition, false);
 		}
-		state.totalScore.cityDamage -= type->value;
-		state.weekScore.cityDamage -= type->value;
+		if (city.id != "CITYMAP_ALIEN")
+		{
+			state.totalScore.cityDamage -= type->value;
+			state.weekScore.cityDamage -= type->value;
+		}
 	}
 }
 
