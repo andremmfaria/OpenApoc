@@ -46,7 +46,20 @@ jobs:
       run: sudo apt-get update
 
     - name: Install dependencies
-      run: sudo apt-get install libsdl2-dev cmake build-essential git libunwind8-dev libboost-locale-dev libboost-filesystem-dev libboost-program-options-dev qt6-base-dev libvorbis-dev ninja-build ${{ matrix.compiler_packages }}
+      run: sudo apt-get install libsdl2-dev cmake build-essential ccache git libunwind8-dev libboost-locale-dev libboost-filesystem-dev libboost-program-options-dev qt6-base-dev libvorbis-dev ninja-build ${{ matrix.compiler_packages }}
+
+    - name: Cache ccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', '**/CMakeLists.txt', 'cmake/**/*.cmake') }}
+        restore-keys: |
+          ccache-${{ runner.os }}-${{ matrix.name }}-
+
+    - name: Configure ccache
+      run: |
+        ccache --max-size=1G
+        ccache --zero-stats
 
     - name: Compiler version check
       run: |
@@ -67,7 +80,9 @@ jobs:
       working-directory: ${{runner.workspace}}/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config ${{ matrix.build_type }}
+      run: |
+        cmake --build . --config ${{ matrix.build_type }}
+        ccache --show-stats
 
     - name: Check source data tree stays clean
       shell: bash
