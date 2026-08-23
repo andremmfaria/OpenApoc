@@ -3,6 +3,8 @@
 > OpenApoc is an open-source re-implementation of the original [X-COM: Apocalypse](https://www.ufopaedia.org/index.php/Apocalypse), that requires the original files to run, licensed under the GPL3 and written in C++ / SDL2. It was originally founded by PmProg in July 2014, and has since grown a significant [community](https://www.ufopaedia.org/index.php/Credits_(OpenApoc)).
 
 [![CMake](https://github.com/OpenApoc/OpenApoc/actions/workflows/cmake.yml/badge.svg)](https://github.com/OpenApoc/OpenApoc/actions/workflows/cmake.yml)
+[![Linux](https://github.com/OpenApoc/OpenApoc/actions/workflows/linux-pack.yml/badge.svg)](https://github.com/OpenApoc/OpenApoc/actions/workflows/linux-pack.yml)
+[![macOS](https://github.com/OpenApoc/OpenApoc/actions/workflows/macos-pack.yml/badge.svg)](https://github.com/OpenApoc/OpenApoc/actions/workflows/macos-pack.yml)
 [![Windows](https://github.com/OpenApoc/OpenApoc/actions/workflows/windows-pack.yml/badge.svg)](https://github.com/OpenApoc/OpenApoc/actions/workflows/windows-pack.yml)
 [![Openapoc issues](https://img.shields.io/github/issues-raw/OpenApoc/OpenApoc?color=1182c3&logo=GitHub&labelColor=282828)](https://github.com/openapoc/openapoc/issues)
 [![Translate OpenApoc](https://img.shields.io/badge/Translate-Openapoc-blue.svg)](https://www.transifex.com/x-com-apocalypse/apocalypse/)
@@ -21,6 +23,7 @@
   * [Building on Windows](#building-on-windows)
   * [Building on Linux](#building-on-linux)
   * [Building on macOS](#building-on-macos)  
+* [Packaging](#packaging)
 * [OpenApoc Coding Style](#openapoc-coding-style)
 * [How to setup OpenApoc](#how-to-setup-openapoc)
 * [Contact us](#contact-us)
@@ -272,6 +275,22 @@ cd ..
 open ./build/bin/OpenApoc.app
 ```
 
+## Packaging
+
+GitHub Actions builds release-style artifacts for Linux, macOS, and Windows:
+
+* `linux-pack.yml` creates a portable Linux tarball.
+* `macos-pack.yml` creates a macOS tarball and DMG.
+* `windows-pack.yml` creates a portable Windows ZIP, debug symbols ZIP, and NSIS installer.
+
+The packages include OpenApoc binaries, tracked project data, and generated
+extractor output. They do not include original X-COM: Apocalypse game data such
+as `cd.iso`, `XCOM.BIN`, or GOG cue/bin files.
+
+Packaging resources live under `packaging/`. Local GitHub Actions runs are
+wrapped by `scripts/act/act.sh`; see `scripts/act/README.md` for usage and
+platform limitations.
+
 
 ## OpenApoc Coding Style
 
@@ -291,7 +310,7 @@ Simple steps to play OpenApoc on Windows right now
 
 1) Download the OpenApoc core files from https://github.com/OpenApoc/OpenApoc/releases
 - For experimental builds visit https://github.com/OpenApoc/OpenApoc/actions
-- If you see a green check next to the latest Windows or Package workflow then you can download its artifacts
+- If you see a green check next to the latest Linux, macOS, Windows, or Package workflow then you can download its artifacts
 - Click ARTIFACTS
 - Download the option that ends with a ".exe" (and without "debug" in it)
 - Run the downloaded exe installer, this will guide you through the installation
