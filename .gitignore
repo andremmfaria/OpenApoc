@@ -94,6 +94,7 @@ nbproject/
 # Default "out-of-source build" directory
 build/
 dist/
+.act/
 /OpenApoc-*/
 save.zip
 openapoc_log.txt
@@ -107,6 +108,21 @@ saves/
 # Python helper bytecode
 __pycache__/
 *.py[cod]
+*$py.class
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+*.egg-info/
 
 # MSVC generated files end up in the source dir, we don't want to add them into git
 game/state/gamestate_serialize_generated.cpp
