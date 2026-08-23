@@ -10,8 +10,4 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Reject fork-local planning files
-      run: |
-        if [ -e plans ]; then
-          echo "::error::plans/ is fork-local and must be removed before opening an upstream PR."
-          exit 1
-        fi
+      run: python3 .github/scripts/hygiene.py plans
