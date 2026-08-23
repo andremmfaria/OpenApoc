@@ -84,6 +84,8 @@ cmake --build build --target format-sources
 
 If clang-tidy is configured in your build, use the `tidy` target or the repository tooling around `tools/lint-tidy.sh`.
 
+For local GitHub Actions checks through `act`, use `scripts/act/act.sh`. Use `scripts/act/act.sh all-series` to run workflows one after another. The parallel mode is available as `scripts/act/act.sh all-parallel`, but it requires `ACT_ALLOW_SHARED_WORKTREE=1` because local parallel `act` runs share one checkout by default.
+
 ## Debugging
 
 Use a build with symbols for normal debugging:
