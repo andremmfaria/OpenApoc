@@ -14,6 +14,7 @@ commands:
   hygiene        run .github/workflows/hygiene.yml as pull_request
   lint           run .github/workflows/lint.yml as push
   linux-pack     run .github/workflows/linux-pack.yml as push
+  macos-pack     run .github/workflows/macos-pack.yml as push
   windows-pack   run .github/workflows/windows-pack.yml as push
   all-series     run every workflow wrapper one after another
   all-parallel   run every workflow wrapper concurrently in this checkout
@@ -23,7 +24,7 @@ commands:
 environment:
   ACT_BIN                       act binary path, defaults to "act"
   ACT_LOG_DIR                   log directory for all-parallel, defaults to .act/logs
-  ACT_PLATFORM                  act runner image mapping, defaults to ubuntu-24.04=catthehacker/ubuntu:act-24.04
+  ACT_PLATFORM                  act runner image mapping, defaults by workflow
   ACT_ALLOW_SHARED_WORKTREE=1   required for all-parallel
 USAGE
 }
@@ -35,13 +36,25 @@ need_act() {
   fi
 }
 
+default_platform() {
+  workflow=$1
+  case "$workflow" in
+    macos-pack.yml)
+      echo "macos-15=catthehacker/ubuntu:act-24.04"
+      ;;
+    *)
+      echo "ubuntu-24.04=catthehacker/ubuntu:act-24.04"
+      ;;
+  esac
+}
+
 run_workflow() {
   event=$1
   workflow=$2
   shift 2
   need_act
   cd "$repo_root"
-  act_platform=${ACT_PLATFORM:-ubuntu-24.04=catthehacker/ubuntu:act-24.04}
+  act_platform=${ACT_PLATFORM:-$(default_platform "$workflow")}
   if [ -n "$act_platform" ]; then
     exec "$act_bin" "$event" -P "$act_platform" -W ".github/workflows/$workflow" "$@"
   fi
@@ -64,6 +77,9 @@ run_named() {
     linux-pack)
       run_workflow push linux-pack.yml "$@"
       ;;
+    macos-pack)
+      run_workflow push macos-pack.yml "$@"
+      ;;
     windows-pack)
       run_workflow push windows-pack.yml "$@"
       ;;
@@ -80,6 +96,7 @@ run_series() {
   run_named hygiene "$@"
   run_named lint "$@"
   run_named linux-pack "$@"
+  run_named macos-pack "$@"
   run_named windows-pack "$@"
 }
 
@@ -99,7 +116,7 @@ WARNING
 
   log_dir=${ACT_LOG_DIR:-"$repo_root/.act/logs"}
   mkdir -p "$log_dir"
-  workflows="cmake hygiene lint linux-pack windows-pack"
+  workflows="cmake hygiene lint linux-pack macos-pack windows-pack"
   pids=""
   failed=0
 
@@ -136,7 +153,7 @@ run_dry() {
   target=$1
   shift
   case "$target" in
-    cmake|hygiene|lint|linux-pack|windows-pack)
+    cmake|hygiene|lint|linux-pack|macos-pack|windows-pack)
       run_named "$target" --dryrun "$@"
       ;;
     all-series)
@@ -157,6 +174,7 @@ list_workflows() {
   "$0" hygiene --list
   "$0" lint --list
   "$0" linux-pack --list
+  "$0" macos-pack --list
   "$0" windows-pack --list
 }
 
@@ -169,7 +187,7 @@ command=$1
 shift
 
 case "$command" in
-  cmake|hygiene|lint|linux-pack|windows-pack)
+  cmake|hygiene|lint|linux-pack|macos-pack|windows-pack)
     run_named "$command" "$@"
     ;;
   all-series)

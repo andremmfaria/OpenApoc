@@ -7,6 +7,7 @@ Current layout:
 ```text
 packaging/
   linux/
+  macos/
   windows/
 ```
 
@@ -19,6 +20,12 @@ Use one subdirectory per target platform when packaging files exist:
 ## Linux
 
 The Linux package is a portable tarball. It contains the OpenApoc binaries, tracked OpenApoc data, generated extractor output, and a small launcher script that runs the game from the package root.
+
+It does not include original X-COM: Apocalypse game data such as `cd.iso`.
+
+## macOS
+
+The macOS package workflow creates a portable tarball and a DMG when `hdiutil` is available. The package contains the OpenApoc app bundle, tracked OpenApoc data, generated extractor output, and an `openapoc.command` launcher that runs from the package root so the default `./data` path resolves correctly.
 
 It does not include original X-COM: Apocalypse game data such as `cd.iso`.
 

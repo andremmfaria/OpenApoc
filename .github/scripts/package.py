@@ -2,6 +2,7 @@
 """Packaging helpers for OpenApoc GitHub Actions."""
 
 import argparse
+import os
 import re
 import shutil
 import stat
@@ -64,6 +65,22 @@ def copy_linux_runtime(build_dir: Path, target: Path) -> None:
             shutil.copy2(source, target_bin / source.name)
     for source in bin_dir.glob("*.dll"):
         shutil.copy2(source, target_bin / source.name)
+
+
+def copy_macos_runtime(build_dir: Path, target: Path) -> None:
+    bin_dir = build_dir / "bin"
+    for source in bin_dir.glob("*.app"):
+        destination = target / source.name
+        if destination.exists():
+            shutil.rmtree(destination)
+        shutil.copytree(source, destination, symlinks=True)
+
+    target_bin = target / "bin"
+    target_bin.mkdir(parents=True, exist_ok=True)
+    for name in RUNTIME_BINARIES:
+        source = bin_dir / name
+        if source.exists():
+            shutil.copy2(source, target_bin / source.name)
 
 
 def copy_windows_runtime(build_dir: Path, target: Path) -> None:
@@ -176,6 +193,93 @@ def linux(args: argparse.Namespace) -> int:
     return 0
 
 
+def macos_tools(_: argparse.Namespace) -> int:
+    if sys.platform != "darwin":
+        print("macos-tools requires macOS", file=sys.stderr)
+        return 2
+
+    packages = [
+        "boost",
+        "cmake",
+        "libvorbis",
+        "ninja",
+        "pkg-config",
+        "qt@6",
+        "sdl2",
+    ]
+    run(["brew", "install", *packages])
+
+    qt_prefix = subprocess.check_output(["brew", "--prefix", "qt@6"], text=True).strip()
+    github_path = os.environ.get("GITHUB_PATH")
+    if github_path:
+        with open(github_path, "a", encoding="utf-8") as output:
+            output.write(f"{qt_prefix}/bin\n")
+
+    github_env = os.environ.get("GITHUB_ENV")
+    if github_env:
+        with open(github_env, "a", encoding="utf-8") as output:
+            output.write(f"CMAKE_PREFIX_PATH={qt_prefix}\n")
+    return 0
+
+
+def find_macdeployqt(args: argparse.Namespace) -> Path | None:
+    candidates = []
+    if args.macdeployqt:
+        candidates.append(args.macdeployqt)
+    path_candidate = shutil.which("macdeployqt")
+    if path_candidate:
+        candidates.append(Path(path_candidate))
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def deploy_macos_qt_apps(package_root: Path, macdeployqt: Path | None) -> None:
+    if not macdeployqt:
+        return
+    for app in package_root.glob("*.app"):
+        if "Launcher" in app.name:
+            run([str(macdeployqt), str(app), "-verbose=1"])
+
+
+def make_dmg(source: Path, target: Path, volume_name: str) -> Path | None:
+    if not shutil.which("hdiutil"):
+        return None
+    if target.exists():
+        target.unlink()
+    run([
+        "hdiutil", "create", "-volname", volume_name, "-srcfolder", str(source),
+        "-ov", "-format", "UDZO", str(target),
+    ])
+    return target
+
+
+def macos(args: argparse.Namespace) -> int:
+    version = package_version(args.workspace, args.version)
+    commit = package_commit(args.workspace, args.commit)
+    package_root = prepare_root(args.dist_dir / f"OpenApoc-macos-{version}")
+
+    copy_macos_runtime(args.build_dir, package_root)
+    copy_package_data(args.workspace, args.build_dir, package_root)
+    copy_common_files(args.workspace, package_root, version, commit)
+
+    launcher = package_root / "openapoc.command"
+    shutil.copy2(args.workspace / "packaging/macos/openapoc.command", launcher)
+    launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    deploy_macos_qt_apps(package_root, find_macdeployqt(args))
+
+    archive = args.dist_dir / f"{package_root.name}.tar.gz"
+    make_tar(package_root, archive)
+    print(archive)
+
+    dmg = make_dmg(package_root, args.dist_dir / f"{package_root.name}.dmg", "OpenApoc")
+    if dmg:
+        print(dmg)
+    return 0
+
+
 def windows_tools(_: argparse.Namespace) -> int:
     run(["choco", "install", "nsis", "ninja", "-y", "--no-progress"])
     return 0
@@ -278,6 +382,14 @@ def parser() -> argparse.ArgumentParser:
     linux_parser = sub.add_parser("linux")
     add_package_args(linux_parser)
     linux_parser.set_defaults(func=linux)
+
+    macos_tools_parser = sub.add_parser("macos-tools")
+    macos_tools_parser.set_defaults(func=macos_tools)
+
+    macos_parser = sub.add_parser("macos")
+    add_package_args(macos_parser)
+    macos_parser.add_argument("--macdeployqt", type=Path)
+    macos_parser.set_defaults(func=macos)
 
     tools_parser = sub.add_parser("windows-tools")
     tools_parser.set_defaults(func=windows_tools)

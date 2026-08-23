@@ -1,0 +1,68 @@
+name: macOS
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+jobs:
+  macos:
+    runs-on: macos-15
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: python3 .github/scripts/package.py macos-tools
+
+    - name: Create build environment
+      run: python3 .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
+
+    - name: Download minimal cd image
+      run: python3 .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
+
+    - name: Configure CMake
+      run: >
+        python3 .github/scripts/cmake.py configure
+        --source ${{ github.workspace }}
+        --build-dir ${{ runner.workspace }}/build
+        --build-type ${{ env.BUILD_TYPE }}
+        --cc clang
+        --cxx clang++
+        --option=-DUSE_SYSTEM_QT=ON
+        --option=-DUSE_PCH=ON
+
+    - name: Build
+      run: python3 .github/scripts/cmake.py build --build-dir ${{ runner.workspace }}/build --config ${{ env.BUILD_TYPE }}
+
+    - name: Test
+      run: python3 .github/scripts/cmake.py test --build-dir ${{ runner.workspace }}/build --config ${{ env.BUILD_TYPE }}
+
+    - name: Package
+      run: >
+        python3 .github/scripts/package.py macos
+        --workspace ${{ github.workspace }}
+        --build-dir ${{ runner.workspace }}/build
+        --dist-dir ${{ github.workspace }}/dist
+
+    - name: Upload macOS package
+      uses: actions/upload-artifact@v4
+      with:
+        name: openapoc-macos
+        path: |
+          dist/*.tar.gz
+          dist/*.dmg
+
+    - name: Upload failure logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-logs
+        if-no-files-found: warn
+        path: |
+          ${{ runner.workspace }}/build/Testing/Temporary/LastTest.log
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeOutput.log
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeError.log
