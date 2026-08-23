@@ -37,6 +37,7 @@ Run one workflow:
 scripts/act/act.sh cmake
 scripts/act/act.sh lint
 scripts/act/act.sh linux-pack
+scripts/act/act.sh macos-pack
 scripts/act/act.sh windows-pack
 ```
 
@@ -65,9 +66,7 @@ Pass extra arguments directly to `act`:
 scripts/act/act.sh cmake --container-architecture linux/amd64
 ```
 
-The wrapper maps `ubuntu-24.04` to `catthehacker/ubuntu:act-24.04` by default
-so `act` does not stop at its first-run image prompt. Override that mapping
-when needed:
+The wrapper maps GitHub runner labels to `catthehacker/ubuntu:act-24.04` by default so `act` does not stop at its first-run image prompt. Override that mapping when needed:
 
 ```sh
 ACT_PLATFORM=ubuntu-24.04=ghcr.io/catthehacker/ubuntu:act-latest scripts/act/act.sh cmake
@@ -87,25 +86,19 @@ Use `all-series` for the safe local default.
 
 ## Useful act Features
 
-The wrapper keeps the common commands short, but most `act` flags can still be
-passed through after the workflow name:
+The wrapper keeps the common commands short, but most `act` flags can still be passed through after the workflow name:
 
-- `--dryrun` validates workflow structure without starting containers. The
-  wrapper exposes this as `scripts/act/act.sh dry-run <workflow>`.
+- `--dryrun` validates workflow structure without starting containers. The wrapper exposes this as `scripts/act/act.sh dry-run <workflow>`.
 - `--list` lists jobs, and `--graph` prints the workflow dependency graph.
 - `--job <name>` runs a single job from a workflow.
 - `--matrix key:value` narrows a matrix run.
 - `--platform <runner=image>` maps GitHub runner labels to local images.
 - `--container-architecture linux/amd64` is useful on non-amd64 hosts.
 - `--eventpath <file>` supplies a local event payload.
-- `--input name=value` and `--input-file <file>` supply workflow-dispatch
-  inputs.
-- `--env`, `--env-file`, `--secret`, `--secret-file`, `--var`, and
-  `--var-file` mirror GitHub Actions runtime data locally.
-- `--artifact-server-path` and `--cache-server-path` keep artifacts and cache
-  data in predictable local directories.
-- `--action-offline-mode` reuses cached actions when testing without network
-  access.
+- `--input name=value` and `--input-file <file>` supply workflow-dispatch inputs.
+- `--env`, `--env-file`, `--secret`, `--secret-file`, `--var`, and `--var-file` mirror GitHub Actions runtime data locally.
+- `--artifact-server-path` and `--cache-server-path` keep artifacts and cache data in predictable local directories.
+- `--action-offline-mode` reuses cached actions when testing without network access.
 - `--watch` reruns workflows when files change.
 
 See the official usage guide for the full option set:
@@ -114,3 +107,7 @@ https://nektosact.com/usage/index.html
 ## Windows Workflow
 
 `windows-pack.yml` targets `windows-2022`. `act` does not provide a real Windows GitHub-hosted runner on a Linux machine. The wrapper can list the workflow and preserve the command shape, but actually running the Windows package workflow locally needs an appropriate platform mapping or a Windows/self-hosted runner setup.
+
+## macOS Workflow
+
+`macos-pack.yml` targets `macos-15`. `act` cannot provide a real macOS GitHub-hosted runner from a Linux Docker container. The wrapper can list and dry-run the workflow locally, but a real macOS packaging run needs GitHub Actions, a macOS machine, or a self-hosted macOS runner.
