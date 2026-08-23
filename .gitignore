@@ -93,6 +93,8 @@ nbproject/
 
 # Default "out-of-source build" directory
 build/
+dist/
+/OpenApoc-*/
 save.zip
 openapoc_log.txt
 version.h
