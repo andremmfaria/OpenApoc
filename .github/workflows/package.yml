@@ -1,0 +1,61 @@
+name: Package
+
+on: [push, pull_request]
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Create build environment
+      run: python3 .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
+
+    - name: Download minimal cd image
+      run: python3 .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
+
+    - name: Install dependencies
+      run: python3 .github/scripts/cmake.py install --profile build --extra-package gcc --extra-package g++
+
+    - name: Configure CMake
+      run: >
+        python3 .github/scripts/cmake.py configure
+        --source ${{ github.workspace }}
+        --build-dir ${{ runner.workspace }}/build
+        --build-type Release
+        --cc gcc
+        --cxx g++
+        --option=-DUSE_PCH=ON
+
+    - name: Build
+      run: python3 .github/scripts/cmake.py build --build-dir ${{ runner.workspace }}/build --config Release
+
+    - name: Test
+      run: python3 .github/scripts/cmake.py test --build-dir ${{ runner.workspace }}/build --config Release
+
+    - name: Package
+      run: >
+        python3 .github/scripts/package.py linux
+        --workspace ${{ github.workspace }}
+        --build-dir ${{ runner.workspace }}/build
+        --dist-dir ${{ github.workspace }}/dist
+
+    - name: Upload Linux package
+      uses: actions/upload-artifact@v4
+      with:
+        name: openapoc-linux
+        path: dist/*.tar.gz
+
+    - name: Upload failure logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-linux-logs
+        if-no-files-found: warn
+        path: |
+          ${{ runner.workspace }}/build/Testing/Temporary/LastTest.log
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeOutput.log
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeError.log

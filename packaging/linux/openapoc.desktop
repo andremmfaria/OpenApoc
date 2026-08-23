@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=OpenApoc
+Comment=Open-source reimplementation of X-COM: Apocalypse
+Exec=openapoc
+Terminal=false
+Categories=Game;StrategyGame;
