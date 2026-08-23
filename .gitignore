@@ -102,6 +102,10 @@ saves/
 # Vim swap files
 .*.swp
 
+# Python helper bytecode
+__pycache__/
+*.py[cod]
+
 # MSVC generated files end up in the source dir, we don't want to add them into git
 game/state/gamestate_serialize_generated.cpp
 game/state/gamestate_serialize_generated.h
