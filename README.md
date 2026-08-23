@@ -2,7 +2,8 @@
 
 > OpenApoc is an open-source re-implementation of the original [X-COM: Apocalypse](https://www.ufopaedia.org/index.php/Apocalypse), that requires the original files to run, licensed under the GPL3 and written in C++ / SDL2. It was originally founded by PmProg in July 2014, and has since grown a significant [community](https://www.ufopaedia.org/index.php/Credits_(OpenApoc)).
 
-[![Windows Build Status](https://img.shields.io/appveyor/build/OpenApoc/openapoc?branch=master&label=AppVeyor%20Windows&logo=appveyor&logoColor=ffffff&labelColor=282828)](https://ci.appveyor.com/project/openapoc/openapoc/branch/master)
+[![CMake](https://github.com/OpenApoc/OpenApoc/actions/workflows/cmake.yml/badge.svg)](https://github.com/OpenApoc/OpenApoc/actions/workflows/cmake.yml)
+[![Windows](https://github.com/OpenApoc/OpenApoc/actions/workflows/windows-pack.yml/badge.svg)](https://github.com/OpenApoc/OpenApoc/actions/workflows/windows-pack.yml)
 [![Openapoc issues](https://img.shields.io/github/issues-raw/OpenApoc/OpenApoc?color=1182c3&logo=GitHub&labelColor=282828)](https://github.com/openapoc/openapoc/issues)
 [![Translate OpenApoc](https://img.shields.io/badge/Translate-Openapoc-blue.svg)](https://www.transifex.com/x-com-apocalypse/apocalypse/)
 [![OpenApoc GPL3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/OpenApoc/OpenApoc/blob/master/LICENSE)
@@ -289,9 +290,9 @@ Simple steps to play OpenApoc on Windows right now
 (Keep in mind that it is ALPHA - this means bugs, crashes and not all features implemented, use our bug-tracker at https://github.com/OpenApoc/OpenApoc/issues to report bugs and navigate known ones)
 
 1) Download the OpenApoc core files from https://github.com/OpenApoc/OpenApoc/releases
-- For experimental builds visit  https://ci.appveyor.com/project/OpenApoc/openapoc/history
-- If you see a green bar next to the latest build then you can download it, click a build that is green, or use "Show More" to list all builds
-- Click ARTIFACTS (Currently only Windows x64)
+- For experimental builds visit https://github.com/OpenApoc/OpenApoc/actions
+- If you see a green check next to the latest Windows or Package workflow then you can download its artifacts
+- Click ARTIFACTS
 - Download the option that ends with a ".exe" (and without "debug" in it)
 - Run the downloaded exe installer, this will guide you through the installation
 - Use "portable install" if you want saves and settings to remain in the install directory

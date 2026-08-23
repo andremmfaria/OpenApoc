@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create distributable OpenApoc packages."""
+"""Packaging helpers for OpenApoc GitHub Actions."""
 
 import argparse
 import shutil
@@ -53,7 +53,7 @@ def copy_tracked_data(workspace: Path, target: Path) -> None:
         shutil.copy2(source, destination)
 
 
-def copy_runtime_binaries(build_dir: Path, target: Path) -> None:
+def copy_linux_runtime(build_dir: Path, target: Path) -> None:
     bin_dir = build_dir / "bin"
     target_bin = target / "bin"
     target_bin.mkdir(parents=True, exist_ok=True)
@@ -86,18 +86,18 @@ def copy_common_files(workspace: Path, package_root: Path, version: str, commit:
     (package_root / "git-commit").write_text(f"{commit}\n", encoding="utf-8")
 
 
-def package_version(args: argparse.Namespace) -> str:
-    return args.version or subprocess.check_output(
+def package_version(workspace: Path, explicit: str | None = None) -> str:
+    return explicit or subprocess.check_output(
         ["git", "describe", "--tags", "--long", "--always"],
-        cwd=args.workspace,
+        cwd=workspace,
         text=True,
     ).strip()
 
 
-def package_commit(args: argparse.Namespace) -> str:
-    return args.commit or subprocess.check_output(
+def package_commit(workspace: Path, explicit: str | None = None) -> str:
+    return explicit or subprocess.check_output(
         ["git", "rev-parse", "HEAD"],
-        cwd=args.workspace,
+        cwd=workspace,
         text=True,
     ).strip()
 
@@ -109,25 +109,9 @@ def prepare_root(package_root: Path) -> Path:
     return package_root
 
 
-def copy_package_data(args: argparse.Namespace, package_root: Path) -> None:
-    copy_tracked_data(args.workspace, package_root / "data")
-    copytree(args.build_dir / "data", package_root / "data")
-
-
-def stage_linux(args: argparse.Namespace, version: str, commit: str) -> Path:
-    package_root = prepare_root(args.dist_dir / f"OpenApoc-linux-{version}")
-    copy_runtime_binaries(args.build_dir, package_root)
-    copy_package_data(args, package_root)
-    copy_common_files(args.workspace, package_root, version, commit)
-    return package_root
-
-
-def stage_windows(args: argparse.Namespace, version: str, commit: str) -> Path:
-    package_root = prepare_root(args.workspace / f"OpenApoc-{version}")
-    copy_windows_runtime(args.build_dir, package_root)
-    copy_package_data(args, package_root)
-    copy_common_files(args.workspace, package_root, version, commit)
-    return package_root
+def copy_package_data(workspace: Path, build_dir: Path, package_root: Path) -> None:
+    copy_tracked_data(workspace, package_root / "data")
+    copytree(build_dir / "data", package_root / "data")
 
 
 def make_tar(source: Path, target: Path) -> None:
@@ -146,9 +130,14 @@ def make_zip(source: Path, target: Path) -> None:
 
 
 def linux(args: argparse.Namespace) -> int:
-    version = package_version(args)
-    commit = package_commit(args)
-    package_root = stage_linux(args, version, commit)
+    version = package_version(args.workspace, args.version)
+    commit = package_commit(args.workspace, args.commit)
+    package_root = prepare_root(args.dist_dir / f"OpenApoc-linux-{version}")
+
+    copy_linux_runtime(args.build_dir, package_root)
+    copy_package_data(args.workspace, args.build_dir, package_root)
+    copy_common_files(args.workspace, package_root, version, commit)
+
     launcher = package_root / "openapoc"
     shutil.copy2(args.workspace / "packaging/linux/openapoc.sh", launcher)
     launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -160,6 +149,24 @@ def linux(args: argparse.Namespace) -> int:
     archive = args.dist_dir / f"{package_root.name}.tar.gz"
     make_tar(package_root, archive)
     print(archive)
+    return 0
+
+
+def windows_tools(_: argparse.Namespace) -> int:
+    run(["choco", "install", "nsis", "ninja", "-y", "--no-progress"])
+    return 0
+
+
+def windows_vcpkg(args: argparse.Namespace) -> int:
+    if not args.root.exists():
+        run(["git", "clone", "https://github.com/microsoft/vcpkg.git", str(args.root)])
+    run(["git", "fetch", "--tags"], cwd=args.root)
+    run(["git", "checkout", args.ref], cwd=args.root)
+    run(["cmd", "/c", str(args.root / "bootstrap-vcpkg.bat"), "-disableMetrics"], cwd=args.root)
+    command = [str(args.root / "vcpkg.exe"), "install"]
+    if args.install_root:
+        command.append(f"--x-install-root={args.install_root}")
+    run(command, cwd=args.workspace)
     return 0
 
 
@@ -196,9 +203,13 @@ def strip_windows_dev_files(package_root: Path) -> None:
 
 
 def windows(args: argparse.Namespace) -> int:
-    version = package_version(args)
-    commit = package_commit(args)
-    package_root = stage_windows(args, version, commit)
+    version = package_version(args.workspace, args.version)
+    commit = package_commit(args.workspace, args.commit)
+    package_root = prepare_root(args.workspace / f"OpenApoc-{version}")
+
+    copy_windows_runtime(args.build_dir, package_root)
+    copy_package_data(args.workspace, args.build_dir, package_root)
+    copy_common_files(args.workspace, package_root, version, commit)
 
     debug_archive = debug_symbols(args.build_dir, args.dist_dir, version)
     if debug_archive:
@@ -214,9 +225,8 @@ def windows(args: argparse.Namespace) -> int:
     make_zip(package_root, archive)
     print(archive)
 
-    nsis = args.nsis
-    if nsis:
-        run([str(nsis), f"/DGAME_VERSION={version}", str(args.workspace / "packaging/windows/installer.nsi")])
+    if args.nsis:
+        run([str(args.nsis), f"/DGAME_VERSION={version}", str(args.workspace / "packaging/windows/installer.nsi")])
         installer_name = f"install-openapoc-{version}.exe"
         for installer in [
             args.workspace / "packaging/windows" / installer_name,
@@ -229,23 +239,34 @@ def windows(args: argparse.Namespace) -> int:
     return 0
 
 
+def add_package_args(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--workspace", required=True, type=Path)
+    command.add_argument("--build-dir", required=True, type=Path)
+    command.add_argument("--dist-dir", required=True, type=Path)
+    command.add_argument("--version")
+    command.add_argument("--commit")
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser()
     sub = root.add_subparsers(dest="command", required=True)
 
-    def add_common(command: argparse.ArgumentParser) -> None:
-        command.add_argument("--workspace", required=True, type=Path)
-        command.add_argument("--build-dir", required=True, type=Path)
-        command.add_argument("--dist-dir", required=True, type=Path)
-        command.add_argument("--version")
-        command.add_argument("--commit")
-
     linux_parser = sub.add_parser("linux")
-    add_common(linux_parser)
+    add_package_args(linux_parser)
     linux_parser.set_defaults(func=linux)
 
+    tools_parser = sub.add_parser("windows-tools")
+    tools_parser.set_defaults(func=windows_tools)
+
+    vcpkg_parser = sub.add_parser("windows-vcpkg")
+    vcpkg_parser.add_argument("--root", required=True, type=Path)
+    vcpkg_parser.add_argument("--workspace", required=True, type=Path)
+    vcpkg_parser.add_argument("--install-root", type=Path)
+    vcpkg_parser.add_argument("--ref", default="2025.09.17")
+    vcpkg_parser.set_defaults(func=windows_vcpkg)
+
     windows_parser = sub.add_parser("windows")
-    add_common(windows_parser)
+    add_package_args(windows_parser)
     windows_parser.add_argument("--nsis", type=Path)
     windows_parser.add_argument("--vcpkg-root", type=Path)
     windows_parser.add_argument("--windeployqt", type=Path)
@@ -256,7 +277,8 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = parser().parse_args()
-    args.dist_dir.mkdir(parents=True, exist_ok=True)
+    if hasattr(args, "dist_dir"):
+        args.dist_dir.mkdir(parents=True, exist_ok=True)
     return args.func(args)
 
 
