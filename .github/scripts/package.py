@@ -2,6 +2,7 @@
 """Packaging helpers for OpenApoc GitHub Actions."""
 
 import argparse
+import re
 import shutil
 import stat
 import subprocess
@@ -100,6 +101,29 @@ def package_commit(workspace: Path, explicit: str | None = None) -> str:
         cwd=workspace,
         text=True,
     ).strip()
+
+
+def windows_package_version(workspace: Path, explicit: str | None = None) -> str:
+    version = package_version(workspace, explicit)
+    if re.fullmatch(r"\d+-\d+-[A-Za-z0-9_.]+", version):
+        return version
+
+    year = subprocess.check_output(
+        ["git", "show", "-s", "--format=%cd", "--date=format:%Y", "HEAD"],
+        cwd=workspace,
+        text=True,
+    ).strip()
+    commit_count = subprocess.check_output(
+        ["git", "rev-list", "--count", "HEAD"],
+        cwd=workspace,
+        text=True,
+    ).strip()
+    short_hash = subprocess.check_output(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=workspace,
+        text=True,
+    ).strip()
+    return f"{year}-{commit_count}-{short_hash}"
 
 
 def prepare_root(package_root: Path) -> Path:
@@ -203,7 +227,7 @@ def strip_windows_dev_files(package_root: Path) -> None:
 
 
 def windows(args: argparse.Namespace) -> int:
-    version = package_version(args.workspace, args.version)
+    version = windows_package_version(args.workspace, args.version)
     commit = package_commit(args.workspace, args.commit)
     package_root = prepare_root(args.workspace / f"OpenApoc-{version}")
 
