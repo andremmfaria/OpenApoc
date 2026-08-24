@@ -33,4 +33,10 @@ It does not include original X-COM: Apocalypse game data such as `cd.iso`.
 
 The Windows package workflow creates the portable ZIP, debug symbols ZIP, and NSIS installer from `packaging/windows/installer.nsi`.
 
+## Release Assets
+
+On pushes to `master`, each platform packaging workflow publishes its package files from `dist/` to a GitHub release named for the UTC push date, using a tag such as `2026-08-24`.
+
+If another push happens on the same day, the date tag is force-moved to the current `master` tip and same-named release assets are replaced. A packaging job skips publishing if its commit is no longer the remote `master` tip, so a slower older run cannot move the date tag backwards.
+
 Do not put ordinary CMake install rules here. CMake install rules should stay near their targets or in a dedicated CMake module. This directory is for packaging artifacts and platform package definitions.

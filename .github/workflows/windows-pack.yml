@@ -2,6 +2,9 @@ name: Windows
 
 on: [push, pull_request]
 
+permissions:
+  contents: write
+
 env:
   BUILD_TYPE: Release
   OPENAPOC_VCPKG_ROOT: C:/vcpkg
@@ -77,6 +80,16 @@ jobs:
       with:
         name: openapoc-windows
         path: dist/*
+
+    - name: Publish release assets
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      env:
+        OPENAPOC_RELEASE_AUTH: ${{ github[format('{0}{1}', 'to', 'ken')] }}
+      run: >
+        python .github/scripts/package.py release
+        --workspace ${{ github.workspace }}
+        --dist-dir ${{ github.workspace }}/dist
+        --branch master
 
     - name: Upload failure logs
       if: failure()
