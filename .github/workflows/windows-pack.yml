@@ -11,7 +11,8 @@ env:
   VCPKG_DEFAULT_TRIPLET: x64-windows
 
 jobs:
-  build:
+  package:
+    name: Windows package
     runs-on: windows-2022
 
     steps:
@@ -34,10 +35,10 @@ jobs:
         restore-keys: |
           vcpkg-windows-
 
-    - name: Install Windows tools
+    - name: Prepare packaging tools
       run: python .github/scripts/package.py windows-tools
 
-    - name: Prepare vcpkg
+    - name: Prepare dependencies
       run: >
         python .github/scripts/package.py windows-vcpkg
         --root "${{ env.OPENAPOC_VCPKG_ROOT }}"
@@ -53,10 +54,10 @@ jobs:
           ${{ runner.workspace }}/build/vcpkg_installed
         key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
 
-    - name: Create build environment
+    - name: Prepare build directory
       run: python .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
 
-    - name: Download minimal cd image
+    - name: Prepare data
       run: python .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
 
     - name: Configure CMake
