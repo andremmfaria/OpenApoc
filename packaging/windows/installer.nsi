@@ -48,7 +48,7 @@
 
 	;Name and file
 	Name "${GAME_NAME} ${GAME_VERSION_DISPLAY}"
-	OutFile "install-openapoc-${GAME_VERSION}.exe"
+	OutFile "OpenApoc-installer-windows-${GAME_VERSION}.exe"
 
 	;Default installation folder
 	InstallDir "$PROGRAMFILES\${GAME_NAME}"

@@ -32,7 +32,7 @@ RELEASE_ASSET_PATTERNS = {
     "macos-dmg": re.compile(r"^OpenApoc-macos-.+\.dmg$"),
     "macos-tar": re.compile(r"^OpenApoc-macos-.+\.tar\.gz$"),
     "windows-debug": re.compile(r"^OpenApoc-debug-windows-.+\.zip$"),
-    "windows-installer": re.compile(r"^install-openapoc-.+\.exe$"),
+    "windows-installer": re.compile(r"^(?:OpenApoc-installer-windows|install-openapoc)-.+\.exe$"),
     "windows-zip": re.compile(r"^OpenApoc-windows-.+\.zip$"),
 }
 
@@ -554,7 +554,7 @@ def windows(args: argparse.Namespace) -> int:
             f"/DGAME_VERSION_RESOURCE={resource_version}",
             str(args.workspace / "packaging/windows/installer.nsi"),
         ])
-        installer_name = f"install-openapoc-{version}.exe"
+        installer_name = f"OpenApoc-installer-windows-{version}.exe"
         for installer in [
             args.workspace / "packaging/windows" / installer_name,
             args.workspace / installer_name,
