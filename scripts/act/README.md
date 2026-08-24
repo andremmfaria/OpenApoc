@@ -6,6 +6,12 @@ This directory contains one wrapper for running the repository's GitHub Actions 
 scripts/act/act.sh <command> [act args...]
 ```
 
+PowerShell users can use the equivalent wrapper:
+
+```powershell
+scripts/act/act.ps1 <command> [act args...]
+```
+
 ## Install act
 
 Official documentation:
@@ -29,6 +35,14 @@ curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
 
 On macOS, Docker Desktop or Colima is commonly used as the container runtime. On Windows, Docker Desktop with WSL2 is the usual path.
 
+PowerShell usage needs PowerShell 7 or newer. On Windows, run the wrapper from PowerShell:
+
+```powershell
+scripts/act/act.ps1 cmake
+scripts/act/act.ps1 dry-run linux-pack
+scripts/act/act.ps1 list
+```
+
 ## Commands
 
 Run one workflow:
@@ -39,6 +53,14 @@ scripts/act/act.sh lint
 scripts/act/act.sh linux-pack
 scripts/act/act.sh macos-pack
 scripts/act/act.sh windows-pack
+```
+
+The PowerShell wrapper accepts the same command names:
+
+```powershell
+scripts/act/act.ps1 cmake
+scripts/act/act.ps1 lint
+scripts/act/act.ps1 linux-pack
 ```
 
 Run all workflows in series:
@@ -107,6 +129,16 @@ https://nektosact.com/usage/index.html
 ## Windows Workflow
 
 `windows-pack.yml` targets `windows-2022`. `act` does not provide a real Windows GitHub-hosted runner on a Linux machine. The wrapper can list the workflow and preserve the command shape, but actually running the Windows package workflow locally needs an appropriate platform mapping or a Windows/self-hosted runner setup.
+
+The GitHub Windows package job is slow because it builds through MSVC and vcpkg, including Qt and the launcher dependency set. The main ways to make it faster are:
+
+- keep vcpkg binary caches warm and stable
+- avoid changing `vcpkg.json` unless dependency changes are intentional
+- split smoke/build validation from full packaging when installer artifacts are not needed
+- consider using a prebuilt Qt installer/cache instead of building Qt through vcpkg
+- use a persistent self-hosted Windows runner if fast iteration matters
+
+The Windows workflow is not a Linux cross-build. It runs on `windows-2022`; Linux only builds the Linux package.
 
 ## macOS Workflow
 

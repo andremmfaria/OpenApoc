@@ -36,8 +36,8 @@ def run(command: list[str], *, cwd: Path | None = None) -> None:
 def github_request(
     method: str,
     url: str,
+    auth: str,
     *,
-    token: str,
     data: dict | bytes | None = None,
     content_type: str = "application/json",
 ) -> tuple[int, dict | bytes]:
@@ -49,7 +49,7 @@ def github_request(
 
     request = urllib.request.Request(url, data=body, method=method)
     request.add_header("Accept", "application/vnd.github+json")
-    request.add_header("Authorization", f"Bearer {token}")
+    request.add_header("Authorization", f"Bearer {auth}")
     request.add_header("X-GitHub-Api-Version", "2022-11-28")
     if body is not None:
         request.add_header("Content-Type", content_type)
