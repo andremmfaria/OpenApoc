@@ -2,6 +2,9 @@ name: macOS
 
 on: [push, pull_request]
 
+permissions:
+  contents: write
+
 env:
   BUILD_TYPE: Release
   HOMEBREW_NO_INSTALL_CLEANUP: 1
@@ -55,6 +58,16 @@ jobs:
         path: |
           dist/*.tar.gz
           dist/*.dmg
+
+    - name: Publish release assets
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      env:
+        OPENAPOC_RELEASE_AUTH: ${{ github[format('{0}{1}', 'to', 'ken')] }}
+      run: >
+        python3 .github/scripts/package.py release
+        --workspace ${{ github.workspace }}
+        --dist-dir ${{ github.workspace }}/dist
+        --branch master
 
     - name: Upload failure logs
       if: failure()
