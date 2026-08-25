@@ -139,6 +139,8 @@ vcpkg --triplet x86-windows install sdl2 boost-locale boost-program-options boos
 
 (Tested on Ubuntu 22.04 and 24.04)
 
+depending on your Linux-distro:
+
 * On Ubuntu, install the following packages:
 
 ```sh
@@ -158,7 +160,13 @@ yum groupinstall "Development Tools" "Development Libraries"
 yum install git SDL2-devel cmake libunwind-devel qt6-qtbase-devel libvorbis-devel
 ```
 
-* Checkout OpenApoc from GitHub.
+
+
+* Checkout OpenApoc from GitHub (this will create a new folder names 'OpenApoc') :
+```sh
+git clone https://github.com/OpenApoc/OpenApoc.git
+```
+
 * Fetch the dependencies from git with the following terminal command (run from the just-created OpenApoc folder).
 
 ```sh
