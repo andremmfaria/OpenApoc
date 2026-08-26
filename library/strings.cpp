@@ -213,7 +213,8 @@ UString Strings::formatTextAsCurrency(const UString &Text)
 	const auto firstGroupSize = digits.length() % 3 == 0 ? 3 : digits.length() % 3;
 	for (size_t i = 0; i < digits.length(); i++)
 	{
-		if (i != 0 && (i == firstGroupSize || (i > firstGroupSize && (i - firstGroupSize) % 3 == 0)))
+		if (i != 0 &&
+		    (i == firstGroupSize || (i > firstGroupSize && (i - firstGroupSize) % 3 == 0)))
 		{
 			formattedText.push_back(',');
 		}
