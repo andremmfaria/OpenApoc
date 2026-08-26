@@ -121,11 +121,17 @@ void Base::die(GameState &state, bool collapse)
 			}
 		}
 	}
-	for (auto a : building->currentAgents)
+	// Copy both lists before iterating: Agent::die() erases from currentBuilding->currentAgents
+	// and Vehicle::die() from currentBuilding->currentVehicles, so a range-for over the live set
+	// increments an iterator whose node has already been freed. Vehicle::die() already guards its
+	// own agent loop the same way.
+	auto agentsCopy = building->currentAgents;
+	for (auto a : agentsCopy)
 	{
 		a->die(state, true);
 	}
-	for (auto v : building->currentVehicles)
+	auto vehiclesCopy = building->currentVehicles;
+	for (auto v : vehiclesCopy)
 	{
 		v->die(state, true);
 	}
