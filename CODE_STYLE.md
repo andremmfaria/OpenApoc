@@ -1,9 +1,9 @@
-Openapoc Coding Style Guidelines
+OpenApoc Coding Style Guidelines
 ================================
 
-This document specifies the guidelines for writing and formatting the c++ code that forms the core of OpenApoc.
+This document specifies the guidelines for writing and formatting the C++ code that forms the core of OpenApoc. For the wider contribution workflow, build/debug commands, issue tracking, and clean-room rules for original-game compatibility work, see `DEVELOPMENT.md`.
 
-Globally, we use 'standard' c++17. This requires reasonably modern compilers (gcc 8, MSVC 2019+ , clang 7+ have been tested). You should avoid using compiler-specific stuff where possible. Exceptions to this exist, but should be wrapped in a #ifdef:
+Globally, we use standard C++17. This requires reasonably modern compilers (GCC 8, MSVC 2019+, and Clang 7+ have been tested). You should avoid compiler-specific extensions where possible. Exceptions to this exist, but should be wrapped in a preprocessor check:
 ```C++
 #ifdef _MSC_VER
 MSVCIsCrazySometimes
@@ -13,30 +13,39 @@ GCCIsntMuchBetter
 #endif
 ```
 
-C++17 features are heavily encouraged - patterns from 'older' c++ versions that have been superceded should be avoided.
+C++17 features are encouraged. Patterns from older C++ versions that have been superseded should be avoided where the newer form is clearer.
 
-The formatting sections of this document are enforced by the [clang-format tool](https://releases.llvm.org/18.1.1/tools/clang/docs/ClangFormat.html). Currently, version '18.0' of ``clang-format`` is to be used. The configuration file ``.clang-format`` in the root of the OpenApoc source repository should match the formatting guidelines specified below.
+The formatting sections of this document are enforced by the [clang-format tool](https://releases.llvm.org/18.1.1/tools/clang/docs/ClangFormat.html). The CI workflow currently uses `clang-format-18`; use the same major version locally where possible. The configuration file `.clang-format` in the repository root is the source of truth for formatting.
 
-With this, it is highly recommended to run ``clang-format`` on all modified files before check-in. This can be run on source files with the following command:
+Run `clang-format` on modified C++ files before check-in:
 
 ```
 clang-format path/to/file.cpp path/to/file.h
 ```
 
-When ran from the root of the OpenApoc source repository it should automatically use the supplied ``.clang-format`` configuration file. The tool also supports modifying the supplied source files to match the configured format when passed the ``-i`` flag:
+When run from the repository root, it should automatically use the supplied `.clang-format` configuration file. The tool also supports modifying the supplied source files to match the configured format when passed the `-i` flag:
 
 ```
 clang-format -i path/to/file.cpp path/to/file.h
 ```
 
-When using the ``CMake`` build system (as used on Unix-based platforms), there is a ``format-sources`` make target that will run ``clang-format -i`` on all source files within the OpenApoc repositry tree. This provides a single command that can be run before commiting:
+When using CMake, there is a `format-sources` target that will run `clang-format -i` on configured source files within the OpenApoc repository tree:
 
 ```
-make format-sources
+cmake --build build --target format-sources
 ```
 
-``clang-tidy`` is also used (configured via the ``.clang-tidy`` file in the repository root) to enforce additional non-formatting rules, such as const-correctness checks. It is integrated into the CI pipeline and can be run locally with the ``tidy`` make target.
+The broader `format` target also formats XML, form, font, and alias files when `xmllint` is available:
 
+```
+cmake --build build --target format
+```
+
+`clang-tidy` is configured via `.clang-tidy` in the repository root and currently enables clang diagnostics, clang static analyzer checks, and `readability-non-const-parameter`. CI uses `clang-tidy-18`. It can be run locally with the `tidy` target after configuring a CMake build directory:
+
+```
+cmake --build build --target tidy
+```
 
 Indent:
 -------
@@ -48,11 +57,11 @@ void function()
 	                                          argThree);
 }
 ```
-* Avoid going over 100 cols (at tab width of '4' spaces).
+* Avoid going over 100 columns (at tab width of 4 spaces).
   * If you find yourself going over this it's often a hint to try to pull things out of loops/into functions
   * Don't break strings up to fit this, it looks ugly and makes things even harder to read.
 * If you have to break, indent the following line by an extra tab
-  * When breaking a single statement, break the line before the next operator. Avoid having an operator as the last thing on a line.
+  * Let `clang-format` handle operator placement. The repository configuration normally keeps binary operators at the end of the previous line.
 ```C++
 void reallyLongFunctionNameIMeanThisIsReallyBadlyNamedWhateverIDontCareTheyPayMeAnyway(int parameterOne,
 	int paramTwo, char theThirdOne)
@@ -73,9 +82,9 @@ Whitespace:
 	a && b;
 	a + b;
 ```
-* Space after if/when/else/for, space after :/; in for
+* Space after flow control keywords such as if/else/for/while/switch, and spaces around `:`/`;` in `for`
 ```C++
-	for (auto &a: b)
+	for (auto &a : b)
 ```
 * No spaces after function name (or function-like keywords like 'sizeof'), but space after flow control keywords, space after comma for multiple args
 ```C++
@@ -91,8 +100,8 @@ Scope:
 ------
 * Indent 1 tab for each new scope
 * New scope is _always_ surrounded by {} braces
-* New scope has a '{' on the /next/ line at the indent of the old scope(not the new scope)
-* closing scope '}' same indent at opening '{', again on a new line
+* New scope has a `{` on the next line at the indent of the old scope, not the new scope
+* closing scope `}` same indent as opening `{`, again on a new line
 * New scope caused by:
   * Functions
 ```C++
@@ -149,22 +158,22 @@ public:
 	void publicFunction();
 };
 ```
-* Exception to this is 'trivial' functions that have the definition & contents all on line line
+* Exception to this is 'trivial' functions that have the definition and contents all on one line
   * 'Trivial' is defined by a single statement that fits within the 100-column limit
 ```C++
-int Class::function() {return 0;}
+int Class::function() { return 0; }
 ```
 * New scope is not caused by:
   * namespace (which should also have a comment stating the namespace name at the closing bracket)
 ```C++
 namespace OpenApoc
 {
-Class MyClass
+class MyClass
 {
 private:
 	int x;
 };
-}; // namespace OpenApoc
+} // namespace OpenApoc
 ```
   * labels
 * Labels and #preprocessor directives /always/ on column 0 (start of line) no matter the scope
@@ -242,7 +251,7 @@ class MyClass
 
 Types:
 ------
-* Avoid typedef - use 'struct' keyword where necessary in c-like code
+* Avoid typedef - use the `struct` keyword where necessary in C-like code
 ```C++
 struct MyStruct
 {
@@ -251,8 +260,8 @@ struct MyStruct
 
 void myStructUser(struct MyStruct s)
 ```
-* up<> sp<> wp<> aliases are defined for std::unique_ptr<>, std::shared_ptr<>, std::weak_ptr<> in "library/sp.h". Use them instead of the verbose versions.
-* mksp<T>(args...) and mkup<T>(args...) helper functions are also provided in "library/sp.h" as aliases for std::make_shared<T>() and std::make_unique<T>() respectively. Use these to construct smart pointers.
+* `up<>`, `sp<>`, and `wp<>` aliases are defined for `std::unique_ptr<>`, `std::shared_ptr<>`, and `std::weak_ptr<>` in `library/sp.h`. Use them instead of the verbose versions.
+* `mksp<T>(args...)` and `mkup<T>(args...)` helper functions are also provided in `library/sp.h` as aliases for `std::make_shared<T>()` and `std::make_unique<T>()` respectively. Use these to construct smart pointers.
 * Use anonymous namespaces for 'file-local' stuff (instead of static, as you can wrap classes in it too)
 ```C++
 namespace
@@ -260,9 +269,8 @@ namespace
 void localFunction()
 }; // anonymous namespace
 ```
-* We provide a "UString" class. This should be used for _all_ strings, as it provides platform-local non-ascii charset handling
-  * All "char*"/std::string params are assumed to be in utf8 format.
-
+* We provide a `UString` class. This should be used for _all_ strings, as it provides platform-local non-ASCII charset handling
+  * All `char *`/`std::string` params are assumed to be in UTF-8 format.
 
 Templates:
 ----------
@@ -292,8 +300,8 @@ public:
 };
 ```
 * 'virtual' keyword only used for base class, 'override' used for derived
-  * All classes with a virtual (or overrided) function _must_ specify a virtual destructor
-* Inheritence should be on the same line as the 'class' keyword (until you get to the column limit and break)
+  * All classes with a virtual (or overridden) function _must_ specify a virtual destructor
+* Inheritance should be on the same line as the 'class' keyword (until you get to the column limit and break)
 ```C++
 class BaseClass
 {
@@ -308,7 +316,7 @@ public:
 	void someFunction() override;
 };
 ```
-  * Never use both 'virtual' and 'override
+  * Never use both 'virtual' and 'override'
 * Don't define an empty {} body in the header for constructors/destructors etc. - use '= default' instead
 ```C++
 class MyBaseClass
@@ -334,7 +342,7 @@ public:
 	Type initialisedMember = 0;
 };
 ```
-* In constructors prefer initialisation of members with  initialiser list over assignment
+* In constructors prefer initialisation of members with an initialiser list over assignment
   * Good:
 ```C++
 MyClass::MyClass(Type value) : member(value)
@@ -373,7 +381,7 @@ MyClass::MyClass(Type valueA, Type valueB) : memberB(valueB), memberA(valueA) {}
 * Use 'struct' for 'data-only' types
   * Structs should _never_ have public/private/protected declarations, if there's anything non-public you shouldn't use a struct.
   * Likely only going to be used within data reading/writing to files
-    * Because of this you're probably going to need to use 'sized' typed (see <cstdint> header)
+  * Because of this you're probably going to need to use fixed-width types (see <cstdint> header)
 ```C++
 struct DataFileSection
 {
@@ -412,9 +420,9 @@ const Type& functionWhereYouCantModifyMyReturnThanks()
 
 General code:
 -------------
-* Where possible use auto
+* Where possible use auto when it keeps the type obvious from the right-hand side
 ```C++
-	auto varableName = function();
+	auto variableName = function();
 ```
   * Note where auto& may be better to avoid a copy
 * sp<> up<> wp<> smart pointers
@@ -429,8 +437,8 @@ General code:
 	functionThatTakesOwnershipOfParam(std::move(var));
 ```
 * Never use a 'naked' new - they should always be packaged immediately in a smart pointer
-* Use emplace() in STL containers where possible over insert()
-  * Unless you explicitly want to copy an object in
+* Use `emplace()` in STL containers when constructing an object in place is clearer or avoids an unnecessary copy
+  * Use `insert()` when inserting an existing object is clearer
 * Use foreach loops where possible ( "for (auto &element : container)")
 ```C++
 	for (auto &element : container)
@@ -440,14 +448,14 @@ General code:
 ```
   * Exception may be a 'safe' iterator when possibly removing elements during loop, then use iterator and keep copy locally
 * Where possible use 'enum class'
-* Naming variables - don't be afraid of using 'short' names ('i') if it's use is obvious
+* Naming variables - don't be afraid of using short names (`i`) if their use is obvious
 * While 'descriptive' names are nice, shorter code is also nice. Don't repeat context
   * 'x' is fine is we already know we're doing something in coordinate space, no need to name it theXCoordinateOfTheCityMapInTiles
 * Reading code is important - try to make it flow
   * avoid 'yoda conditionals' (1 == var) don't help, modern compilers catch a =/== typo easily
   * if post increment (x++) flows better use that, don't try to 'optimise' away the copy - the compiler will do that for you
 * The compiler is more clever than you could ever possibly hope to be. Write things to be clear and obvious. Only /after/ it's proven to be a problem to you even look at optimisation (then _always have numbers_)
-* don't use 'c' casts ("(int)x") - that does different things on if the object type has a defined conversion or not - use static_cast<>/reinterpret_case<> instead
+* Don't use C casts (`(int)x`) - that does different things depending on whether the object type has a defined conversion or not. Use `static_cast<>`/`reinterpret_cast<>` instead.
 * prefer {} constructor calls where possible
 ```C++
 	MyClass classInstance{argumentOne, argTwo};
@@ -497,13 +505,14 @@ Logging:
 	LogWarning("Value {0} exceeds limit {1}", value, limit);
 	LogError("Failed to load file \"{0}\"", path);
 ```
-* LogInfo is cheap - use it everywhere interesting
+* `LogInfo` is cheap, but keep it useful. Prefer logging meaningful state changes, diagnostics, and rare events over noisy per-frame/per-tick chatter.
 * LogWarning should be something that has gone wrong, but recoverable.
 * LogError is for fatal errors.
 
 Comments:
+---------
 * either // or /* */ is fine - prefer // for single line
-* If doing multi line /\*-style comments have an aligned '\*' with at the beginning of each subseqent line:
+* If doing multi line /\*-style comments have an aligned '\*' at the beginning of each subsequent line:
 ```C++
 /* first line
  * second line
@@ -513,6 +522,10 @@ Comments:
   * Try to make the code clearer first if a comment is 'required' to make something obvious
   * Function/variable names are useful here - if reading it aloud describes what your comment was going to say that's perfect
   * //TODO: //FIXME: when leaving known breakage
+
+Clean-room notes:
+-----------------
+If a change is based on original-game research, follow the clean-room and copyright rules in `DEVELOPMENT.md#clean-room-and-copyright-rules`. Do not copy original source, decompiler output, disassembly listings, proprietary assets, or generated dumps of original resources into OpenApoc code or documentation.
 
 Includes:
 ---------
