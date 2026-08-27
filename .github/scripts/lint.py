@@ -60,6 +60,55 @@ def revision(before: str, after: str) -> str:
     return f"{before}..{after}"
 
 
+def sha_exists(revision_ref: str, *, cwd: Path) -> bool:
+    if not revision_ref or revision_ref == ZERO_SHA:
+        return False
+    try:
+        run(["git", "cat-file", "-e", f"{revision_ref}^{{commit}}"], cwd=cwd)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def merge_base(ref_a: str, ref_b: str, *, cwd: Path) -> str | None:
+    try:
+        result = run(["git", "merge-base", ref_a, ref_b], cwd=cwd)
+    except subprocess.CalledProcessError:
+        return None
+    candidate = result.stdout.strip()
+    return candidate if sha_exists(candidate, cwd=cwd) else None
+
+
+def resolve_before(before: str, after: str, *, cwd: Path) -> str:
+    """Resolve a usable BEFORE revision for the tidy diff range.
+
+    A force-push (common with the stacked-branch workflow used here) can make
+    github.event.before point at a commit that no longer exists anywhere in the
+    repository, which makes `git diff` fail outright. Fall back through
+    progressively cheaper alternatives rather than crashing.
+    """
+    if sha_exists(before, cwd=cwd):
+        return before
+
+    if before and before != ZERO_SHA:
+        print(f"::warning::before revision {before} not found in repository, choosing a fallback lint range")
+
+    for default_ref in ("origin/HEAD", "origin/master", "origin/main"):
+        if sha_exists(default_ref, cwd=cwd):
+            base = merge_base(default_ref, after, cwd=cwd)
+            if base is not None:
+                return base
+
+    try:
+        parent = run(["git", "rev-parse", f"{after}^"], cwd=cwd).stdout.strip()
+    except subprocess.CalledProcessError:
+        parent = None
+    if parent and sha_exists(parent, cwd=cwd):
+        return parent
+
+    return ZERO_SHA
+
+
 def tidy(args: argparse.Namespace) -> int:
     compile_commands = args.build_dir / "compile_commands.json"
     if not compile_commands.is_file():
@@ -69,7 +118,11 @@ def tidy(args: argparse.Namespace) -> int:
         print(f'::error::clang-tidy binary "{args.clang_tidy}" not found')
         return 1
 
-    git_revision = args.revision or revision(args.before, args.after)
+    if args.revision:
+        git_revision = args.revision
+    else:
+        before = resolve_before(args.before, args.after, cwd=args.workspace)
+        git_revision = revision(before, args.after)
     print(f"Running clang-tidy for {git_revision}")
     result = run(
         ["git", "diff", "--name-only", "--diff-filter=ACMRTUXB", git_revision],
