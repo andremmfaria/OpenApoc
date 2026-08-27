@@ -61,6 +61,10 @@ void TileView::eventOccurred(Event *e)
 						                               selectedTilePosition.y + 1,
 						                               selectedTilePosition.z});
 				}
+				else
+				{
+					scrollDownKB = true;
+				}
 				break;
 			case SDLK_w:
 				if (debugHotkeyMode)
@@ -69,6 +73,10 @@ void TileView::eventOccurred(Event *e)
 						this->setSelectedTilePosition({selectedTilePosition.x,
 						                               selectedTilePosition.y - 1,
 						                               selectedTilePosition.z});
+				}
+				else
+				{
+					scrollUpKB = true;
 				}
 				break;
 			case SDLK_a:
@@ -79,6 +87,10 @@ void TileView::eventOccurred(Event *e)
 						                               selectedTilePosition.y,
 						                               selectedTilePosition.z});
 				}
+				else
+				{
+					scrollLeftKB = true;
+				}
 				break;
 			case SDLK_d:
 				if (debugHotkeyMode)
@@ -87,6 +99,10 @@ void TileView::eventOccurred(Event *e)
 						this->setSelectedTilePosition({selectedTilePosition.x + 1,
 						                               selectedTilePosition.y,
 						                               selectedTilePosition.z});
+				}
+				else
+				{
+					scrollRightKB = true;
 				}
 				break;
 			case SDLK_r:
@@ -123,6 +139,18 @@ void TileView::eventOccurred(Event *e)
 				scrollLeftKB = false;
 				break;
 			case SDLK_RIGHT:
+				scrollRightKB = false;
+				break;
+			case SDLK_w:
+				scrollUpKB = false;
+				break;
+			case SDLK_s:
+				scrollDownKB = false;
+				break;
+			case SDLK_a:
+				scrollLeftKB = false;
+				break;
+			case SDLK_d:
 				scrollRightKB = false;
 				break;
 		}

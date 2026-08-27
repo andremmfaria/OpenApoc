@@ -3515,6 +3515,10 @@ bool BattleView::handleKeyDown(Event *e)
 				}
 				return true;
 			case SDLK_s:
+				if (!(modifierLCtrl || modifierRCtrl))
+				{
+					break;
+				}
 				if (activeTab == notMyTurnTab)
 				{
 					return true;
