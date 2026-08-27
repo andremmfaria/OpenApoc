@@ -2,7 +2,9 @@
 
 ## Objective
 
-Create a deterministic live-test harness that drives the actual OpenApoc executable through scripted input and validates behavior through read-only engine probes, logs, screenshots, and optional save-state digests.
+Create an automated, scriptable QA harness that drives the actual OpenApoc executable and validates behavior through engine probes, logs, screenshots, and optional save-state digests.
+
+The engine-side harness is a local command socket. The TAS layer should be an external runner that starts the game, sends scripted commands, waits for expected states, evaluates assertions, and writes machine-readable artifacts.
 
 This is not a replacement for CTest. It is a slower regression layer for real UI/gameplay flows.
 
@@ -37,19 +39,44 @@ live-test/bin/test-unit
 live-test/bin/test-live tests/tas/scripts/load-cityscape.json
 ```
 
-## Phase 2: Add TAS Configuration Options
+## Phase 2: Use The Engine Harness Socket
 
-Add config options in a new `TAS` namespace:
+The first engine-side control layer is an opt-in command socket under `Framework.Harness`.
 
-- `TAS.Script`: path to replay script.
-- `TAS.Artifacts`: output directory for run artifacts.
-- `TAS.Record`: optional path for recording mode.
-- `TAS.AssertLogClean`: fail when `LogError` occurs.
-- `TAS.FailFast`: stop on first failed assertion.
+Configuration:
 
-Default behavior should be no-op unless `TAS.Script` or `TAS.Record` is set.
+- `Framework.Harness.Enable`: enable the harness listener.
+- `Framework.Harness.Port`: command socket port.
+- `Framework.Harness.WarpCursor`: optionally move the OS cursor to follow injected input.
 
-Recommended invocation:
+The socket protocol supports:
+
+- `STATUS`: read current stage, display size, mouse position, port, and stage detail.
+- `CONTROLS` / `CONTROL <id> ...`: enumerate and drive live named UI controls.
+- `UI [filter]`: inspect the live form/control tree with resolved rectangles.
+- `CLICK`, `MOVE`, `DOWN`, `UP`, `SCROLL`, `KEY`, and `TEXT`: inject raw input for nameless widgets.
+- `GS <query>`: read game-state probes through the game-layer query hook.
+- `SCREENSHOT <path>` and `SAVE <path>`: write useful QA artifacts.
+- `RESIZE`, `HELP`, and `QUIT`.
+
+This gives the TAS runner a practical control surface without relying on host-level mouse automation. Named `CONTROL` actions should be preferred for ordinary UI because they fail if the expected control is absent; raw input remains available for map tiles and runtime widgets without stable names.
+
+## Phase 3: Add The TAS Runner
+
+Add an external runner under `live-test/` rather than embedding the whole script engine in the game.
+
+Responsibilities:
+
+- Start OpenApoc under Xvfb/headless rendering with `Framework.Harness.Enable=1`.
+- Load and validate a scenario script.
+- Apply fixture config and command-line options before boot.
+- Connect to the harness socket.
+- Send commands, wait for expected replies/states, and enforce timeouts.
+- Evaluate assertions from `STATUS`, `GS`, `UI`, screenshots, logs, and save artifacts.
+- Write artifacts and final result JSON.
+- Request clean shutdown when the script completes or fails.
+
+Recommended game invocation:
 
 ```sh
 xvfb-run -s "-screen 0 1280x720x24" \
@@ -60,30 +87,30 @@ xvfb-run -s "-screen 0 1280x720x24" \
   --Framework.FrameLimit=1800 \
   --Game.SkipIntro=true \
   --Game.ASyncLoading=false \
-  --TAS.Script=tests/tas/scripts/load-cityscape.json \
-  --TAS.Artifacts=build/tas/load-cityscape
+  --Framework.Harness.Enable=1 \
+  --Framework.Harness.Port=17321
 ```
 
-## Phase 3: Implement The TAS Runner
+The runner command should eventually look like:
 
-Add a small `TasRunner` owned by `Framework`.
+```sh
+live-test run tests/tas/scripts/load-cityscape.json
+```
 
-Responsibilities:
+## Phase 4: Add TAS Runner Options
 
-- Load and validate the script.
-- Apply fixture config overrides before boot.
-- On each frame, inject scheduled actions.
-- Evaluate scheduled assertions.
-- Write artifacts and final result JSON.
-- Request clean shutdown when script completes or fails.
+Add runner-level options, not game config options:
 
-Integration point:
+- `--script`: path to replay script.
+- `--artifacts`: output directory for run artifacts.
+- `--record`: optional path for recording mode.
+- `--assert-log-clean`: fail when `LogError` occurs.
+- `--fail-fast`: stop on first failed assertion.
+- `--harness-port`: command socket port passed to the game.
 
-- Call the runner once per frame in `Framework::run()`.
-- Inject input by creating framework `Event` objects and calling `Framework::pushEvent()`.
-- Avoid using `SDL_PushEvent()` unless a specific SDL-path test requires it.
+Default game behavior remains no-op unless `Framework.Harness.Enable=1`.
 
-## Phase 4: Define The Script Format
+## Phase 5: Define The Script Format
 
 Use JSON first. JSONL can be added later for record mode.
 
@@ -91,15 +118,16 @@ Script sections:
 
 - `name`
 - `fixture`
-- `timeline`
+- `steps`
 - `assertions`
 
 Core actions:
 
 - `wait`
 - `wait_for_stage`
-- `key_down`
-- `key_up`
+- `send`
+- `control`
+- `key`
 - `text`
 - `mouse_move`
 - `mouse_down`
@@ -118,9 +146,36 @@ Core assertions:
 - `screenshot nonblank`
 - `log.errors == 0`
 
-## Phase 5: Add Read-Only Probes
+Example:
 
-Create a stable probe registry. Scripts must not know C++ object layouts.
+```json
+{
+  "name": "load-cityscape",
+  "fixture": {
+    "save": "tests/tas/fixtures/week1-city.zip",
+    "config": {
+      "Game.SkipIntro": true,
+      "Game.ASyncLoading": false,
+      "Config.Save": false
+    }
+  },
+  "steps": [
+    {"send": "STATUS", "until": {"field": "stage", "equals": "CityView"}, "timeout_ms": 10000},
+    {"send": "GS gamestate.current_city.exists", "expect": {"equals": "true"}},
+    {"send": "SCREENSHOT build/tas/load-cityscape/screenshots/city-loaded.png"}
+  ],
+  "assertions": [
+    {"probe": "stage.name", "equals": "CityView"},
+    {"probe": "gamestate.current_city.exists", "equals": true},
+    {"probe": "log.errors", "equals": 0},
+    {"artifact": "city-loaded.png", "nonblank": true}
+  ]
+}
+```
+
+## Phase 6: Stabilize Probes
+
+Create a stable probe contract. Scripts must not know C++ object layouts. The current engine hook is `GS <query>`; the query names should become the compatibility boundary used by scenario scripts.
 
 Initial probes:
 
@@ -142,14 +197,14 @@ Initial probes:
 
 Implementation notes:
 
-- `Framework` can expose stage and frame probes.
+- `STATUS` already exposes stage, display, mouse, port, and stage-detail information.
 - Logger should count error and warning events.
 - `GameState` can expose high-level read-only values.
-- Forms can expose active form and named control visibility.
+- `UI` and `CONTROLS` expose active forms and named controls.
 - Renderer can write screenshots and compute nonblank/hash checks.
 - Save digests can use existing serialization, ideally normalized to avoid timestamp noise.
 
-## Phase 6: Add First Scripts
+## Phase 7: Add First Scripts
 
 Start with boring tests:
 
@@ -169,10 +224,10 @@ Start with boring tests:
 
 3. `open-base-screen`
    - Load city save.
-   - Use deterministic input to open a base screen.
+   - Use named `CONTROL` actions where available and raw input only where necessary.
    - Assert expected stage or form.
 
-## Phase 7: Record Mode
+## Phase 8: Record Mode
 
 Recording should capture:
 
