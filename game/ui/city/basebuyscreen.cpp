@@ -40,7 +40,7 @@ void BaseBuyScreen::begin()
 	form->findControlTyped<Label>("TEXT_FUNDS")->setText(state->getPlayerBalance());
 
 	auto text = form->findControlTyped<Label>("TEXT_PRICE");
-	text->setText(format(tr("This Building will cost ${0}"), Strings::fromInteger(price)));
+	text->setText(format(tr("This Building will cost ${0}"), state->formatCurrency(price)));
 
 	form->findControlTyped<Graphic>("GRAPHIC_MINIMAP")
 	    ->setImage(BaseGraphics::drawMinimap(state, *building));

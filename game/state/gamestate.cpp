@@ -112,14 +112,16 @@ GameState::~GameState()
 }
 
 // Just a handy shortcut since it's shown on every single screen
-UString GameState::getPlayerBalance() const
+UString GameState::getPlayerBalance() const { return formatCurrency(this->getPlayer()->balance); }
+
+UString GameState::formatCurrency(int64_t amount) const
 {
-	auto playerBalance = Strings::fromInteger(this->getPlayer()->balance);
+	auto formatted = Strings::fromInteger(amount);
 
 	if (config().getBool("OpenApoc.NewFeature.formatAsCurrency"))
-		playerBalance = Strings::formatTextAsCurrency(playerBalance);
+		formatted = Strings::formatTextAsCurrency(formatted);
 
-	return playerBalance;
+	return formatted;
 }
 
 StateRef<Organisation> GameState::getOrganisation(const UString &orgID)
