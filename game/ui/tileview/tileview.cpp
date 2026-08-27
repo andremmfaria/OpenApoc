@@ -25,7 +25,13 @@ TileView::~TileView() = default;
 
 void TileView::begin() { autoScroll = config().getBool("Options.Misc.AutoScroll"); }
 
-void TileView::pause() {}
+void TileView::pause()
+{
+	scrollUpKB = false;
+	scrollDownKB = false;
+	scrollLeftKB = false;
+	scrollRightKB = false;
+}
 
 void TileView::resume() { autoScroll = config().getBool("Options.Misc.AutoScroll"); }
 
@@ -154,6 +160,13 @@ void TileView::eventOccurred(Event *e)
 				scrollRightKB = false;
 				break;
 		}
+	}
+	else if (e->type() == EVENT_WINDOW_DEACTIVATE)
+	{
+		scrollUpKB = false;
+		scrollDownKB = false;
+		scrollLeftKB = false;
+		scrollRightKB = false;
 	}
 	else if (e->type() == EVENT_FINGER_MOVE)
 	{
