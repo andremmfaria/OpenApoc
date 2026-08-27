@@ -48,6 +48,31 @@ ResearchScreen::ResearchScreen(sp<GameState> state, sp<Facility> selected_lab) :
 	viewHighlight = BaseGraphics::FacilityHighlight::Labs;
 	if (selected_lab)
 	{
+		// The facility passed in may belong to a base other than the currently
+		// selected one - eg when opened from a "research/manufacture completed"
+		// prompt for a base that isn't the one selected in the cityscape, or from
+		// the cityscape science tabs when the implicitly-selected scientist's base
+		// differs from the current one. Make sure current_base tracks the
+		// facility's actual base, otherwise setCurrentLabInfo() compares agent
+		// counts gathered from the wrong base against this lab's assigned_agents
+		// and asserts.
+		for (auto &base : state->player_bases)
+		{
+			bool found = false;
+			for (auto &facility : base.second->facilities)
+			{
+				if (facility == selected_lab)
+				{
+					found = true;
+					break;
+				}
+			}
+			if (found)
+			{
+				state->current_base = {state.get(), base.second};
+				break;
+			}
+		}
 		state->current_base->selectedLab = viewFacility = selected_lab;
 	}
 	else
