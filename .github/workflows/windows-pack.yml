@@ -36,9 +36,9 @@ jobs:
     - name: Prepare vcpkg
       run: >
         python .github/scripts/package.py windows-vcpkg
-        --root ${{ env.VCPKG_ROOT }}
-        --workspace ${{ github.workspace }}
-        --install-root ${{ runner.workspace }}/build/vcpkg_installed
+        --root "${{ env.VCPKG_ROOT }}"
+        --workspace "${{ github.workspace }}"
+        --install-root "${{ runner.workspace }}/build/vcpkg_installed"
 
     - name: Create build environment
       run: python .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
@@ -66,10 +66,10 @@ jobs:
     - name: Package
       run: >
         python .github/scripts/package.py windows
-        --workspace ${{ github.workspace }}
-        --build-dir ${{ runner.workspace }}/build
-        --dist-dir ${{ github.workspace }}/dist
-        --vcpkg-root ${{ env.VCPKG_ROOT }}
+        --workspace "${{ github.workspace }}"
+        --build-dir "${{ runner.workspace }}/build"
+        --dist-dir "${{ github.workspace }}/dist"
+        --vcpkg-root "${{ env.VCPKG_ROOT }}"
         --nsis "C:/Program Files (x86)/NSIS/makensis.exe"
 
     - name: Upload Windows packages

@@ -39,9 +39,9 @@ jobs:
     - name: Package
       run: >
         python3 .github/scripts/package.py linux
-        --workspace ${{ github.workspace }}
-        --build-dir ${{ runner.workspace }}/build
-        --dist-dir ${{ github.workspace }}/dist
+        --workspace "${{ github.workspace }}"
+        --build-dir "${{ runner.workspace }}/build"
+        --dist-dir "${{ github.workspace }}/dist"
 
     - name: Upload Linux package
       uses: actions/upload-artifact@v4
