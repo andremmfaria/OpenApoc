@@ -829,6 +829,13 @@ VehicleTargetHelper::adjustTargetToClosestFlying(GameState &state, Vehicle &v, V
 						if (x == midX - i || x == midX + i || y == midY - i || y == midY + i ||
 						    z == midZ - i || z == midZ + i)
 						{
+							// The scan walks outward from the midpoint and can step off the
+							// map, so bounds-check before the lookup - same guard the
+							// Sidestep branch below already applies.
+							if (!map.tileIsValid(x, y, z))
+							{
+								continue;
+							}
 							auto t = map.getTile(x, y, z);
 							if (t->ownedObjects.empty())
 							{
