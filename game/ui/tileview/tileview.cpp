@@ -54,28 +54,58 @@ void TileView::eventOccurred(Event *e)
 				scrollRightKB = true;
 				break;
 			case SDLK_s:
-				if (selectedTilePosition.y < (map.size.y - 1))
-					selectedTilePosition.y++;
+				if (debugHotkeyMode)
+				{
+					if (selectedTilePosition.y < (map.size.y - 1))
+						this->setSelectedTilePosition({selectedTilePosition.x,
+						                               selectedTilePosition.y + 1,
+						                               selectedTilePosition.z});
+				}
 				break;
 			case SDLK_w:
-				if (selectedTilePosition.y > 0)
-					selectedTilePosition.y--;
+				if (debugHotkeyMode)
+				{
+					if (selectedTilePosition.y > 0)
+						this->setSelectedTilePosition({selectedTilePosition.x,
+						                               selectedTilePosition.y - 1,
+						                               selectedTilePosition.z});
+				}
 				break;
 			case SDLK_a:
-				if (selectedTilePosition.x > 0)
-					selectedTilePosition.x--;
+				if (debugHotkeyMode)
+				{
+					if (selectedTilePosition.x > 0)
+						this->setSelectedTilePosition({selectedTilePosition.x - 1,
+						                               selectedTilePosition.y,
+						                               selectedTilePosition.z});
+				}
 				break;
 			case SDLK_d:
-				if (selectedTilePosition.x < (map.size.x - 1))
-					selectedTilePosition.x++;
+				if (debugHotkeyMode)
+				{
+					if (selectedTilePosition.x < (map.size.x - 1))
+						this->setSelectedTilePosition({selectedTilePosition.x + 1,
+						                               selectedTilePosition.y,
+						                               selectedTilePosition.z});
+				}
 				break;
 			case SDLK_r:
-				if (selectedTilePosition.z < (map.size.z - 1))
-					selectedTilePosition.z++;
+				if (debugHotkeyMode)
+				{
+					if (selectedTilePosition.z < (map.size.z - 1))
+						this->setSelectedTilePosition({selectedTilePosition.x,
+						                               selectedTilePosition.y,
+						                               selectedTilePosition.z + 1});
+				}
 				break;
 			case SDLK_f:
-				if (selectedTilePosition.z > 0)
-					selectedTilePosition.z--;
+				if (debugHotkeyMode)
+				{
+					if (selectedTilePosition.z > 0)
+						this->setSelectedTilePosition({selectedTilePosition.x,
+						                               selectedTilePosition.y,
+						                               selectedTilePosition.z - 1});
+				}
 				break;
 		}
 	}
