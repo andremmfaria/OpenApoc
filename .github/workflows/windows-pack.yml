@@ -4,8 +4,8 @@ on: [push, pull_request]
 
 env:
   BUILD_TYPE: Release
+  OPENAPOC_VCPKG_ROOT: C:/vcpkg
   VCPKG_DEFAULT_TRIPLET: x64-windows
-  VCPKG_ROOT: C:/vcpkg
 
 jobs:
   build:
@@ -36,7 +36,7 @@ jobs:
     - name: Prepare vcpkg
       run: >
         python .github/scripts/package.py windows-vcpkg
-        --root "${{ env.VCPKG_ROOT }}"
+        --root "${{ env.OPENAPOC_VCPKG_ROOT }}"
         --workspace "${{ github.workspace }}"
         --install-root "${{ runner.workspace }}/build/vcpkg_installed"
 
@@ -54,8 +54,8 @@ jobs:
         --build-type ${{ env.BUILD_TYPE }}
         --option=-DMSVC_PDB=ON
         --option=-DUSE_PCH=ON
-        --option=-DVCPKG_INSTALLED_DIR=${{ runner.workspace }}/build/vcpkg_installed
-        --option=-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+        "--option=-DVCPKG_INSTALLED_DIR=${{ runner.workspace }}/build/vcpkg_installed"
+        "--option=-DCMAKE_TOOLCHAIN_FILE=${{ env.OPENAPOC_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
 
     - name: Build
       run: python .github/scripts/cmake.py build --build-dir ${{ runner.workspace }}/build --config ${{ env.BUILD_TYPE }}
@@ -69,7 +69,7 @@ jobs:
         --workspace "${{ github.workspace }}"
         --build-dir "${{ runner.workspace }}/build"
         --dist-dir "${{ github.workspace }}/dist"
-        --vcpkg-root "${{ env.VCPKG_ROOT }}"
+        --vcpkg-root "${{ env.OPENAPOC_VCPKG_ROOT }}"
         --nsis "C:/Program Files (x86)/NSIS/makensis.exe"
 
     - name: Upload Windows packages
