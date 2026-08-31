@@ -178,6 +178,7 @@ class GameState : public std::enable_shared_from_this<GameState>
 	Xorshift128Plus<uint32_t> rng;
 
 	UString getPlayerBalance() const;
+	UString formatCurrency(int64_t amount) const;
 	StateRef<Organisation> getOrganisation(const UString &orgID);
 	const StateRef<Organisation> &getPlayer() const;
 	StateRef<Organisation> getPlayer();

@@ -332,9 +332,9 @@ void RecruitScreen::updateFormValues()
 
 	// Update money
 	const auto balance = state->getPlayer()->balance + moneyDelta;
-	form->findControlTyped<Label>("TEXT_FUNDS")->setText(Strings::fromInteger(balance));
+	form->findControlTyped<Label>("TEXT_FUNDS")->setText(state->formatCurrency(balance));
 	form->findControlTyped<Label>("TEXT_FUNDS_DELTA")
-	    ->setText(format("{0}{1}", moneyDelta > 0 ? "+" : "", Strings::fromInteger(moneyDelta)));
+	    ->setText(format("{0}{1}", moneyDelta > 0 ? "+" : "", state->formatCurrency(moneyDelta)));
 
 	updateBaseHighlight();
 }

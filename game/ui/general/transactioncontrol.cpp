@@ -654,8 +654,10 @@ TransactionControl::createControl(const UString &id, Type type, const UString &n
 	// Price
 	if (price != 0 && (indexLeft == ECONOMY_IDX || indexRight == ECONOMY_IDX))
 	{
-		auto label = control->createChild<Label>(
-		    format("${0}", Strings::fromInteger(control->price)), labelFont);
+		auto priceText = Strings::fromInteger(control->price);
+		if (config().getBool("OpenApoc.NewFeature.formatAsCurrency"))
+			priceText = Strings::formatTextAsCurrency(priceText);
+		auto label = control->createChild<Label>(format("${0}", priceText), labelFont);
 		label->Location = {290, 3};
 		label->Size = {47, 16};
 		label->TextHAlign = HorizontalAlignment::Right;

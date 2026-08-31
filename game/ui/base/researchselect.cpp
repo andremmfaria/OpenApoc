@@ -254,7 +254,7 @@ void ResearchSelect::populateResearchList()
 		{
 			UString progress_text;
 			if (this->lab->type == ResearchTopic::Type::Engineering)
-				progress_text = format("${0}", Strings::fromInteger(t->cost));
+				progress_text = format("${0}", state->formatCurrency(t->cost));
 			else
 				progress_text = tr("Complete");
 			auto progress_label =

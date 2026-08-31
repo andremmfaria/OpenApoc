@@ -108,13 +108,13 @@ void WeeklyFundingScreen::begin()
 		const int adjustment = (modifier == 0) ? 0 : player->income / modifier;
 
 		labelAdjustment->setText(
-		    format(tr("Funding adjustment> ${0}"), Strings::fromInteger(adjustment)));
+		    format(tr("Funding adjustment> ${0}"), state->formatCurrency(adjustment)));
 		labelNextWeekIncome->setText(format(tr("Income for next week> ${0}"),
-		                                    Strings::fromInteger(currentIncome + adjustment)));
+		                                    state->formatCurrency(currentIncome + adjustment)));
 	}
 
 	labelCurrentIncome->setText(
-	    format(tr("Current income> ${0}"), Strings::fromInteger(currentIncome)));
+	    format(tr("Current income> ${0}"), state->formatCurrency(currentIncome)));
 	labelRatingDescription->setText(ratingDescription);
 
 	state->weekScore.reset();

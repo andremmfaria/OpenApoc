@@ -466,11 +466,11 @@ void BaseScreen::eventOccurred(Event *e)
 		selText->setText(dragFacility->name);
 		selGraphic->setImage(dragFacility->sprite);
 		statsLabels[0]->setText(tr("Cost to build"));
-		statsValues[0]->setText(format("${0}", Strings::fromInteger(dragFacility->buildCost)));
+		statsValues[0]->setText(format("${0}", state->formatCurrency(dragFacility->buildCost)));
 		statsLabels[1]->setText(tr("Days to build"));
 		statsValues[1]->setText(format("{0}", dragFacility->buildTime));
 		statsLabels[2]->setText(tr("Maintenance cost"));
-		statsValues[2]->setText(format("${0}", Strings::fromInteger(dragFacility->weeklyCost)));
+		statsValues[2]->setText(format("${0}", state->formatCurrency(dragFacility->weeklyCost)));
 	}
 	else if (selFacility != nullptr)
 	{

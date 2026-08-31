@@ -156,15 +156,15 @@ void ScoreScreen::setFinanceMode()
 		int agentsSalary = soldiers + biochemists + engineers + physicists;
 
 		formFinance->findControlTyped<Label>("AGENTS_W")
-		    ->setText(format("${0}", Strings::fromInteger(soldiers)));
+		    ->setText(format("${0}", state->formatCurrency(soldiers)));
 		formFinance->findControlTyped<Label>("BIOCHEMISTS_W")
-		    ->setText(format("${0}", Strings::fromInteger(biochemists)));
+		    ->setText(format("${0}", state->formatCurrency(biochemists)));
 		formFinance->findControlTyped<Label>("ENGINEERS_W")
-		    ->setText(format("${0}", Strings::fromInteger(engineers)));
+		    ->setText(format("${0}", state->formatCurrency(engineers)));
 		formFinance->findControlTyped<Label>("PHYSICISTS_W")
-		    ->setText(format("${0}", Strings::fromInteger(physicists)));
+		    ->setText(format("${0}", state->formatCurrency(physicists)));
 		formFinance->findControlTyped<Label>("TOTAL_W")->setText(
-		    format("${0}", Strings::fromInteger(agentsSalary)));
+		    format("${0}", state->formatCurrency(agentsSalary)));
 
 		int basesCosts = 0;
 		for (auto &b : state->player_bases)
@@ -175,9 +175,9 @@ void ScoreScreen::setFinanceMode()
 			}
 		}
 		formFinance->findControlTyped<Label>("BASES_TOTAL_W")
-		    ->setText(format("${0}", Strings::fromInteger(basesCosts)));
+		    ->setText(format("${0}", state->formatCurrency(basesCosts)));
 		formFinance->findControlTyped<Label>("OVERHEADS_W")
-		    ->setText(format("${0}", Strings::fromInteger(agentsSalary + basesCosts)));
+		    ->setText(format("${0}", state->formatCurrency(agentsSalary + basesCosts)));
 
 		int balance = state->getPlayer()->balance;
 
@@ -189,10 +189,10 @@ void ScoreScreen::setFinanceMode()
 		}
 
 		formFinance->findControlTyped<Label>("INITIAL")->setText(
-		    format(tr("Initial funds> ${0}"), Strings::fromInteger(balance)));
+		    format(tr("Initial funds> ${0}"), state->formatCurrency(balance)));
 		formFinance->findControlTyped<Label>("REMAINING")
 		    ->setText(format(tr("Remaining funds> ${0}"),
-		                     Strings::fromInteger(balance - agentsSalary - basesCosts)));
+		                     state->formatCurrency(balance - agentsSalary - basesCosts)));
 	}
 
 	title->setText(tr("FINANCE"));
