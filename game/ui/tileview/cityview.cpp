@@ -2163,7 +2163,7 @@ void CityView::update()
 			switchDimension = false;
 		}
 	}
-	if (DEBUG_SHOW_ALIEN ? state->current_city.id != "CITYMAP_ALIEN" : switchDimension)
+	if (DEBUG_FORCE_ALIEN_DIMENSION ? state->current_city.id != "CITYMAP_ALIEN" : switchDimension)
 	{
 		setUpdateSpeed(CityUpdateSpeed::Speed1);
 		for (auto &newCity : state->cities)
@@ -2179,7 +2179,7 @@ void CityView::update()
 					state->current_city = {state.get(), newCity.first};
 				}
 				auto cityView = mksp<CityView>(state);
-				cityView->DEBUG_SHOW_ALIEN = DEBUG_SHOW_ALIEN;
+				cityView->DEBUG_FORCE_ALIEN_DIMENSION = DEBUG_FORCE_ALIEN_DIMENSION;
 				fw().stageQueueCommand({StageCmd::Command::REPLACEALL, cityView});
 				return;
 			}

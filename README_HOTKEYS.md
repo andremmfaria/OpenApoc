@@ -119,6 +119,23 @@ OpenApoc eventually aims to implement all the controls from the original, as wel
   - For hills, switch between showing only tiles marked as "road", or to also include tiles marked with hill direction
 - Debug tile cursor: [W][A][S][D] nudge the cursor north/west/south/east, [R] / [F] move it up / down a level. Keys claimed by the debug bindings above take priority (here: [W], [A], [R])
 
+#### Debug view flags
+
+The cityscape debug keys above toggle these flags in `CityTileView`:
+
+- `DEBUG_FORCE_ALIEN_DIMENSION` - [W] - while set, warps to the alien dimension and holds the view there (without triggering research unlocks); clearing it lets the normal auto-return logic warp back
+- `DEBUG_SHOW_VEHICLE_TARGETS` - [T] - draws a marker on every vehicle target
+- `DEBUG_SHOW_ROAD_PATHFINDING` - [F2] - overlays the road pathfinding map
+- `DEBUG_WALK_MODE_DISPLAY` - [F3] - cycles (0-5) through highlight modes for walk mode, collapsing tiles and basement tiles
+- `DEBUG_SHOW_ALIEN_CREW` - [F4] - shows aliens present in buildings on the strategy map
+- `DEBUG_SHOW_VEHICLE_PATH` - [F5] - draws vehicle paths (blue flying, yellow ground)
+- `DEBUG_SHOW_TUBES` - [F10] - highlights people tubes
+- `DEBUG_SHOW_ROADS` - [F11] - highlights roads
+- `DEBUG_SHOW_HILLS` - [F12] - highlights hills
+- `DEBUG_ISOLATED_LAYER` - [PgUp] / [PgDown] - renders only the selected map layer opaque (-1 shows all layers)
+- `DEBUG_CONNECTION_FILTER` - [Numpad 1379/28] - shows only roads/tubes with an outgoing connection in the selected direction (-1, via [Numpad 0], shows all)
+- `DEBUG_STRICT_TILE_FILTER` - [Numpad 5] - switches between showing only tiles with a defined type and also including building or direction-marked tiles
+
 ## Base screens
 
 ### Debug (cheats)
