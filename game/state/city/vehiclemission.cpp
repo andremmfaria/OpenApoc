@@ -329,6 +329,8 @@ Vec3<float> FlyingVehicleTileHelper::findSidestep(GameState &state, sp<TileObjec
 		{
 			newPosition.z -= 1;
 		}
+		newPosition.x = glm::clamp(newPosition.x, 0.0f, map.size.x - 0.1f);
+		newPosition.y = glm::clamp(newPosition.y, 0.0f, map.size.y - 0.1f);
 		newPosition.z = glm::clamp(newPosition.z, 0.0f, map.size.z - 0.1f);
 
 		if (static_cast<Vec3<int>>(newPosition) != vTile->getOwningTile()->position &&
