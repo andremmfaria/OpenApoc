@@ -2039,9 +2039,14 @@ void BattleUnit::update(GameState &state, unsigned int ticks)
 			updateMovement(state, moveTicksRemaining, wasUsingLift);
 			updateTurning(state, turnTicksRemaining, handsTicksRemaining);
 			updateDisplayedItem(state);
+
+			if (destroyed || retreated)
+			{
+				break;
+			}
 		}
 	}
-	if (retreated)
+	if (destroyed || retreated)
 	{
 		return;
 	}
@@ -2636,7 +2641,7 @@ void BattleUnit::updateCrying(GameState &state)
 
 void BattleUnit::updateCheckBeginFalling(GameState &state)
 {
-	if (retreated)
+	if (destroyed || retreated)
 	{
 		return;
 	}
@@ -4873,8 +4878,8 @@ void BattleUnit::die(GameState &state, StateRef<BattleUnit> attacker, bool viole
 		{
 			shadowObject->removeFromMap();
 		}
-		tileObject->removeFromMap();
 		destroyed = true;
+		tileObject->removeFromMap();
 	}
 }
 
