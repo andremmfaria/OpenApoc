@@ -2033,6 +2033,15 @@ void BattleUnit::update(GameState &state, unsigned int ticks)
 			lastHandsTicksRemaining = handsTicksRemaining;
 			lastTurnTicksRemaining = turnTicksRemaining;
 
+			// A unit can also die before this loop is ever entered (e.g. bleeding
+			// out from a fatal wound in updateStateAndStats(), called earlier in
+			// update()). Bail before touching movement/body/hands state, which
+			// assume a live tileObject with a non-null owningTile.
+			if (destroyed || retreated)
+			{
+				break;
+			}
+
 			updateCheckBeginFalling(state);
 			updateBody(state, bodyTicksRemaining);
 			updateHands(state, handsTicksRemaining);
