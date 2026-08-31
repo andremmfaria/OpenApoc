@@ -2612,11 +2612,7 @@ void VehicleMission::start(GameState &state, Vehicle &v)
 		}
 		case MissionType::SelfDestruct:
 		{
-			if (v.smokeDoodad)
-			{
-				LogError("Restarting self destruct?");
-			}
-			else
+			if (!v.smokeDoodad)
 			{
 				v.setCrashed(state);
 			}
