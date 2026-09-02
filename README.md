@@ -42,7 +42,7 @@ Pirated disc images and archives are not supported and will cause issues such as
 * Human-Readable Savegame editing - It's all XML in a ZIP archvive so you can edit/tweak in progress games to your liking!
 * Support for modern screen resolutions and display scaling at a silky smooth 60fps
 * Added a 'More Options' menu that allows players to select dozens of new optional improvements and enhancements
-* Added a full debug system ([Hot Keys](https://github.com/OpenApoc/OpenApoc/blob/master/README_HOTKEYS.txt), etc.)
+* Added a full debug system ([Hot Keys](https://github.com/OpenApoc/OpenApoc/blob/master/README_HOTKEYS.md), etc.)
 * Port the game to any platform you like (Windows, Linux, Etc.)
 * Added a Skirmish Mode for quick fights and custom battles (Experimental)
 * The new engine has ample opportunities for expansion and refinements including:

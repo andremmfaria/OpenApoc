@@ -51,7 +51,7 @@ after_build:
   - xcopy /E data OpenApoc-%OPENAPOC_VERSION%\data\
   - copy portable.txt OpenApoc-%OPENAPOC_VERSION%\
   - copy README.md OpenApoc-%OPENAPOC_VERSION%\README.txt
-  - copy README_HOTKEYS.txt OpenApoc-%OPENAPOC_VERSION%\
+  - copy README_HOTKEYS.md OpenApoc-%OPENAPOC_VERSION%\
   - 7z a %OPENAPOC_FILENAME% OpenApoc-%OPENAPOC_VERSION%
   - appveyor PushArtifact %OPENAPOC_FILENAME%
   - del OpenApoc-%OPENAPOC_VERSION%\portable.txt

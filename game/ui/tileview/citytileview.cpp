@@ -125,7 +125,7 @@ void CityTileView::eventOccurred(Event *e)
 			{
 				case SDLK_w:
 				{
-					DEBUG_SHOW_ALIEN = !DEBUG_SHOW_ALIEN;
+					DEBUG_FORCE_ALIEN_DIMENSION = !DEBUG_FORCE_ALIEN_DIMENSION;
 					return;
 				}
 				case SDLK_t:
@@ -139,38 +139,38 @@ void CityTileView::eventOccurred(Event *e)
 					return;
 				}
 				case SDLK_PAGEUP:
-					if (DEBUG_LAYER == -1 || DEBUG_LAYER >= map.size.z)
+					if (DEBUG_ISOLATED_LAYER == -1 || DEBUG_ISOLATED_LAYER >= map.size.z)
 					{
-						DEBUG_LAYER = 0;
+						DEBUG_ISOLATED_LAYER = 0;
 					}
 					else
 					{
-						DEBUG_LAYER++;
+						DEBUG_ISOLATED_LAYER++;
 					}
 					return;
 				case SDLK_PAGEDOWN:
-					if (DEBUG_LAYER <= 0)
+					if (DEBUG_ISOLATED_LAYER <= 0)
 					{
-						DEBUG_LAYER = 0;
+						DEBUG_ISOLATED_LAYER = 0;
 					}
 					else
 					{
-						DEBUG_LAYER--;
+						DEBUG_ISOLATED_LAYER--;
 					}
 					return;
 				case SDLK_F3:
 				{
-					DEBUG_SHOW_MISC_TYPE++;
-					DEBUG_SHOW_MISC_TYPE = DEBUG_SHOW_MISC_TYPE % 6;
-					if (DEBUG_SHOW_MISC_TYPE)
+					DEBUG_WALK_MODE_DISPLAY++;
+					DEBUG_WALK_MODE_DISPLAY = DEBUG_WALK_MODE_DISPLAY % 6;
+					if (DEBUG_WALK_MODE_DISPLAY)
 					{
-						DEBUG_SHOW_SLOPES = false;
-						DEBUG_SHOW_TUBE = false;
+						DEBUG_SHOW_HILLS = false;
+						DEBUG_SHOW_TUBES = false;
 						DEBUG_SHOW_ROADS = false;
 						DEBUG_SHOW_ALIEN_CREW = false;
-						DEBUG_LAYER = -1;
+						DEBUG_ISOLATED_LAYER = -1;
 					}
-					LogWarning("Debug walk type display set to {0}", DEBUG_SHOW_MISC_TYPE);
+					LogWarning("Debug walk type display set to {0}", DEBUG_WALK_MODE_DISPLAY);
 					return;
 				}
 				case SDLK_F5:
@@ -184,26 +184,26 @@ void CityTileView::eventOccurred(Event *e)
 					if (DEBUG_SHOW_ALIEN_CREW)
 					{
 						DEBUG_SHOW_ROADS = false;
-						DEBUG_SHOW_SLOPES = false;
-						DEBUG_SHOW_TUBE = false;
-						DEBUG_SHOW_MISC_TYPE = 0;
-						DEBUG_LAYER = -1;
+						DEBUG_SHOW_HILLS = false;
+						DEBUG_SHOW_TUBES = false;
+						DEBUG_WALK_MODE_DISPLAY = 0;
+						DEBUG_ISOLATED_LAYER = -1;
 					}
 					LogWarning("Debug Alien display set to {0}", DEBUG_SHOW_ALIEN_CREW);
 					return;
 				}
 				case SDLK_F12:
 				{
-					DEBUG_SHOW_SLOPES = !DEBUG_SHOW_SLOPES;
-					if (DEBUG_SHOW_SLOPES)
+					DEBUG_SHOW_HILLS = !DEBUG_SHOW_HILLS;
+					if (DEBUG_SHOW_HILLS)
 					{
 						DEBUG_SHOW_ALIEN_CREW = false;
-						DEBUG_SHOW_TUBE = false;
+						DEBUG_SHOW_TUBES = false;
 						DEBUG_SHOW_ROADS = false;
-						DEBUG_SHOW_MISC_TYPE = 0;
-						DEBUG_LAYER = -1;
+						DEBUG_WALK_MODE_DISPLAY = 0;
+						DEBUG_ISOLATED_LAYER = -1;
 					}
-					LogWarning("Debug slopes display set to {0}", DEBUG_SHOW_SLOPES);
+					LogWarning("Debug slopes display set to {0}", DEBUG_SHOW_HILLS);
 					return;
 				}
 				case SDLK_F11:
@@ -212,51 +212,51 @@ void CityTileView::eventOccurred(Event *e)
 					if (DEBUG_SHOW_ROADS)
 					{
 						DEBUG_SHOW_ALIEN_CREW = false;
-						DEBUG_SHOW_TUBE = false;
-						DEBUG_SHOW_SLOPES = false;
-						DEBUG_SHOW_MISC_TYPE = 0;
-						DEBUG_LAYER = -1;
+						DEBUG_SHOW_TUBES = false;
+						DEBUG_SHOW_HILLS = false;
+						DEBUG_WALK_MODE_DISPLAY = 0;
+						DEBUG_ISOLATED_LAYER = -1;
 					}
 					LogWarning("Debug roads display set to {0}", DEBUG_SHOW_ROADS);
 					return;
 				}
 				case SDLK_F10:
 				{
-					DEBUG_SHOW_TUBE = !DEBUG_SHOW_TUBE;
-					if (DEBUG_SHOW_TUBE)
+					DEBUG_SHOW_TUBES = !DEBUG_SHOW_TUBES;
+					if (DEBUG_SHOW_TUBES)
 					{
 						DEBUG_SHOW_ROADS = false;
-						DEBUG_SHOW_SLOPES = false;
+						DEBUG_SHOW_HILLS = false;
 						DEBUG_SHOW_ALIEN_CREW = false;
-						DEBUG_SHOW_MISC_TYPE = 0;
-						DEBUG_LAYER = -1;
+						DEBUG_WALK_MODE_DISPLAY = 0;
+						DEBUG_ISOLATED_LAYER = -1;
 					}
-					LogWarning("Debug tube display set to {0}", DEBUG_SHOW_TUBE);
+					LogWarning("Debug tube display set to {0}", DEBUG_SHOW_TUBES);
 					return;
 				}
 				case SDLK_KP_0:
-					DEBUG_DIRECTION = -1;
+					DEBUG_CONNECTION_FILTER = -1;
 					return;
 				case SDLK_KP_5:
-					DEBUG_ONLY_TYPE = !DEBUG_ONLY_TYPE;
+					DEBUG_STRICT_TILE_FILTER = !DEBUG_STRICT_TILE_FILTER;
 					return;
 				case SDLK_KP_9:
-					DEBUG_DIRECTION = 0;
+					DEBUG_CONNECTION_FILTER = 0;
 					return;
 				case SDLK_KP_3:
-					DEBUG_DIRECTION = 1;
+					DEBUG_CONNECTION_FILTER = 1;
 					return;
 				case SDLK_KP_1:
-					DEBUG_DIRECTION = 2;
+					DEBUG_CONNECTION_FILTER = 2;
 					return;
 				case SDLK_KP_7:
-					DEBUG_DIRECTION = 3;
+					DEBUG_CONNECTION_FILTER = 3;
 					return;
 				case SDLK_KP_8:
-					DEBUG_DIRECTION = 4;
+					DEBUG_CONNECTION_FILTER = 4;
 					return;
 				case SDLK_KP_2:
-					DEBUG_DIRECTION = 5;
+					DEBUG_CONNECTION_FILTER = 5;
 					return;
 				case SDLK_F6:
 				{
@@ -422,9 +422,9 @@ void CityTileView::render()
 									{
 										auto s = std::static_pointer_cast<TileObjectScenery>(obj)
 										             ->getOwner();
-										if (DEBUG_SHOW_MISC_TYPE)
+										if (DEBUG_WALK_MODE_DISPLAY)
 										{
-											switch (DEBUG_SHOW_MISC_TYPE)
+											switch (DEBUG_WALK_MODE_DISPLAY)
 											{
 												case 5:
 													visible = s->type->basement;
@@ -437,38 +437,38 @@ void CityTileView::render()
 												case 1:
 												case 0:
 													visible = (int)s->type->walk_mode ==
-													          DEBUG_SHOW_MISC_TYPE - 1;
+													          DEBUG_WALK_MODE_DISPLAY - 1;
 													break;
 												default:
 													LogError("Unhandled DEBUG_SHOW_WALK_TYPE {0}",
-													         DEBUG_SHOW_MISC_TYPE);
-													DEBUG_SHOW_MISC_TYPE = 0;
+													         DEBUG_WALK_MODE_DISPLAY);
+													DEBUG_WALK_MODE_DISPLAY = 0;
 													break;
 											}
 										}
-										if (DEBUG_LAYER >= 0)
+										if (DEBUG_ISOLATED_LAYER >= 0)
 										{
-											visible = s->initialPosition.z == DEBUG_LAYER;
+											visible = s->initialPosition.z == DEBUG_ISOLATED_LAYER;
 										}
-										if (DEBUG_SHOW_SLOPES)
+										if (DEBUG_SHOW_HILLS)
 										{
-											if (DEBUG_DIRECTION == -1)
+											if (DEBUG_CONNECTION_FILTER == -1)
 											{
 												visible = s->type->hill[0] || s->type->hill[1] ||
 												          s->type->hill[2] || s->type->hill[3];
 											}
 											else
 											{
-												visible = s->type->hill[DEBUG_DIRECTION];
+												visible = s->type->hill[DEBUG_CONNECTION_FILTER];
 											}
 											visible =
-											    visible && (!DEBUG_ONLY_TYPE ||
+											    visible && (!DEBUG_STRICT_TILE_FILTER ||
 											                s->type->tile_type ==
 											                    SceneryTileType::TileType::Road);
 										}
 										if (DEBUG_SHOW_ROADS)
 										{
-											if (DEBUG_DIRECTION == -1)
+											if (DEBUG_CONNECTION_FILTER == -1)
 											{
 												visible = s->type->connection[0] ||
 												          s->type->connection[1] ||
@@ -477,16 +477,17 @@ void CityTileView::render()
 											}
 											else
 											{
-												visible = s->type->connection[DEBUG_DIRECTION];
+												visible =
+												    s->type->connection[DEBUG_CONNECTION_FILTER];
 											}
 											visible =
-											    visible && (!DEBUG_ONLY_TYPE ||
+											    visible && (!DEBUG_STRICT_TILE_FILTER ||
 											                s->type->tile_type ==
 											                    SceneryTileType::TileType::Road);
 										}
-										if (DEBUG_SHOW_TUBE)
+										if (DEBUG_SHOW_TUBES)
 										{
-											if (DEBUG_DIRECTION == -1)
+											if (DEBUG_CONNECTION_FILTER == -1)
 											{
 												visible = s->type->tube[0] || s->type->tube[1] ||
 												          s->type->tube[2] || s->type->tube[3] ||
@@ -494,9 +495,10 @@ void CityTileView::render()
 											}
 											else
 											{
-												visible = s->type->tube[DEBUG_DIRECTION];
+												visible = s->type->tube[DEBUG_CONNECTION_FILTER];
 											}
-											visible = visible || (!DEBUG_ONLY_TYPE && s->building);
+											visible = visible ||
+											          (!DEBUG_STRICT_TILE_FILTER && s->building);
 										}
 									}
 									default:

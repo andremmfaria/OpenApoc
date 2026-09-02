@@ -57,13 +57,13 @@ class CityTileView : public TileView
 	bool DEBUG_SHOW_ROAD_PATHFINDING = false;
 	bool DEBUG_SHOW_ALIEN_CREW = false;
 	bool DEBUG_SHOW_ROADS = false;
-	bool DEBUG_SHOW_TUBE = false;
-	int DEBUG_SHOW_MISC_TYPE = 0;
-	bool DEBUG_SHOW_SLOPES = false;
-	bool DEBUG_ONLY_TYPE = false;
-	int DEBUG_DIRECTION = -1;
-	int DEBUG_LAYER = -1;
-	bool DEBUG_SHOW_ALIEN = false;
+	bool DEBUG_SHOW_TUBES = false;
+	int DEBUG_WALK_MODE_DISPLAY = 0;
+	bool DEBUG_SHOW_HILLS = false;
+	bool DEBUG_STRICT_TILE_FILTER = false;
+	int DEBUG_CONNECTION_FILTER = -1;
+	int DEBUG_ISOLATED_LAYER = -1;
+	bool DEBUG_FORCE_ALIEN_DIMENSION = false;
 	bool DEBUG_SHOW_VEHICLE_TARGETS = false;
 
   private:
