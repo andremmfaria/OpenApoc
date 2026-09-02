@@ -288,6 +288,9 @@ class FlyingVehicleMover : public VehicleMover
 				//   Otherwise we think we'll be moving too slow to dodge (basically moving
 				//   backwards into projectile or forwards alongside it and still getting hit)
 				auto point2d = glm::normalize(Vec2<float>{point.x, point.y});
+				// Use the vehicle's owning tile (integer) as the base so offsets don't get
+				// truncated toward zero and collapse onto the vehicle's own tile near 0
+				auto ownTile = vehicle.tileObject->getOwningTile()->position;
 				// Gather all allowed dodge locations according to the rules above
 				std::list<Vec3<int>> possibleDodgeLocations;
 				for (int x = -1; x <= 1; x++)
@@ -314,21 +317,19 @@ class FlyingVehicleMover : public VehicleMover
 								continue;
 							}
 							// Dodging horizontally
-							possibleDodgeLocations.emplace_back(
-							    vehicle.position.x + x, vehicle.position.y + y, vehicle.position.z);
+							possibleDodgeLocations.emplace_back(ownTile.x + x, ownTile.y + y,
+							                                    ownTile.z);
 						}
 						// Dodging vertically
 						if (dodgeUp)
 						{
-							possibleDodgeLocations.emplace_back(vehicle.position.x + x,
-							                                    vehicle.position.y + y,
-							                                    vehicle.position.z + 1.0f);
+							possibleDodgeLocations.emplace_back(ownTile.x + x, ownTile.y + y,
+							                                    ownTile.z + 1);
 						}
 						if (dodgeDown)
 						{
-							possibleDodgeLocations.emplace_back(vehicle.position.x + x,
-							                                    vehicle.position.y + y,
-							                                    vehicle.position.z + -1.0f);
+							possibleDodgeLocations.emplace_back(ownTile.x + x, ownTile.y + y,
+							                                    ownTile.z - 1);
 						}
 					}
 				}

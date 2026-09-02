@@ -96,13 +96,12 @@ void TileObject::setPosition(Vec3<float> newPosition)
 		LogError("This == null");
 	}
 	if (newPosition.x < 0 || newPosition.y < 0 || newPosition.z < 0 ||
-	    newPosition.x > map.size.x + 1 || newPosition.y > map.size.y + 1 ||
-	    newPosition.z > map.size.z + 1)
+	    newPosition.x >= map.size.x || newPosition.y >= map.size.y || newPosition.z >= map.size.z)
 	{
 		LogWarning("Trying to place object at {0} in map of size {1}", newPosition, map.size);
-		newPosition.x = clamp(newPosition.x, 0.0f, (float)map.size.x + 1);
-		newPosition.y = clamp(newPosition.y, 0.0f, (float)map.size.y + 1);
-		newPosition.z = clamp(newPosition.z, 0.0f, (float)map.size.z + 1);
+		newPosition.x = clamp(newPosition.x, 0.0f, map.size.x - 0.1f);
+		newPosition.y = clamp(newPosition.y, 0.0f, map.size.y - 0.1f);
+		newPosition.z = clamp(newPosition.z, 0.0f, map.size.z - 0.1f);
 		LogWarning("Clamped object to {0}", newPosition);
 	}
 	this->removeFromMap();
