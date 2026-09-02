@@ -35,8 +35,8 @@ The Windows package workflow creates the portable ZIP, debug symbols ZIP, and NS
 
 ## Release Assets
 
-On pushes to `master`, each platform packaging workflow publishes its package files from `dist/` to a GitHub release named for the UTC push date, using a tag such as `2026-08-24`.
+On pushes to `master`, each platform packaging workflow publishes its package files from `dist/` to a GitHub release named for the UTC push date, using a tag such as `20260824`.
 
-If another push happens on the same day, the date tag is force-moved to the current `master` tip and same-named release assets are replaced. A packaging job skips publishing if its commit is no longer the remote `master` tip, so a slower older run cannot move the date tag backwards.
+Package filenames use the date plus the repository commit count, for example `OpenApoc-linux-20260824.1234.tar.gz`. If another push happens on the same day, the date tag is force-moved to the current `master` tip and prior assets for the same platform/package type are replaced. A packaging job skips publishing if its commit is no longer the remote `master` tip, so a slower older run cannot move the date tag backwards.
 
 Do not put ordinary CMake install rules here. CMake install rules should stay near their targets or in a dedicated CMake module. This directory is for packaging artifacts and platform package definitions.

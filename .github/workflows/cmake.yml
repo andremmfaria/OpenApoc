@@ -1,9 +1,12 @@
 name: CMake
 
-on: [push, pull_request]
+on:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
+    name: ${{ matrix.name }}
     # The CMake configure and build commands are platform agnostic and should work equally
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
@@ -31,13 +34,13 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Create Build Environment
+    - name: Prepare build directory
       run: python3 .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
 
-    - name: Download minimal cd image
+    - name: Prepare data
       run: python3 .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
 
-    - name: Install dependencies
+    - name: Prepare dependencies
       run: python3 .github/scripts/cmake.py install --profile build ${{ matrix.compiler_packages }}
 
     - name: Cache ccache

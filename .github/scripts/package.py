@@ -27,6 +27,14 @@ RUNTIME_BINARIES = [
 
 DATA_EXCLUDES = {"cd.iso", "XCOM.BIN", "XCOM.bin"}
 GITHUB_API = "https://api.github.com"
+RELEASE_ASSET_PATTERNS = {
+    "linux-tar": re.compile(r"^OpenApoc-linux-.+\.tar\.gz$"),
+    "macos-dmg": re.compile(r"^OpenApoc-macos-.+\.dmg$"),
+    "macos-tar": re.compile(r"^OpenApoc-macos-.+\.tar\.gz$"),
+    "windows-debug": re.compile(r"^OpenApoc-debug-windows-.+\.zip$"),
+    "windows-installer": re.compile(r"^(?:OpenApoc-installer-windows|install-openapoc)-.+\.exe$"),
+    "windows-zip": re.compile(r"^OpenApoc-windows-.+\.zip$"),
+}
 
 
 def run(command: list[str], *, cwd: Path | None = None) -> None:
@@ -36,8 +44,8 @@ def run(command: list[str], *, cwd: Path | None = None) -> None:
 def github_request(
     method: str,
     url: str,
+    auth: str,
     *,
-    token: str,
     data: dict | bytes | None = None,
     content_type: str = "application/json",
 ) -> tuple[int, dict | bytes]:
@@ -49,7 +57,7 @@ def github_request(
 
     request = urllib.request.Request(url, data=body, method=method)
     request.add_header("Accept", "application/vnd.github+json")
-    request.add_header("Authorization", f"Bearer {token}")
+    request.add_header("Authorization", f"Bearer {auth}")
     request.add_header("X-GitHub-Api-Version", "2022-11-28")
     if body is not None:
         request.add_header("Content-Type", content_type)
@@ -144,8 +152,28 @@ def copy_common_files(workspace: Path, package_root: Path, version: str, commit:
     (package_root / "git-commit").write_text(f"{commit}\n", encoding="utf-8")
 
 
+def commit_count(workspace: Path) -> str:
+    return subprocess.check_output(
+        ["git", "rev-list", "--count", "HEAD"],
+        cwd=workspace,
+        text=True,
+    ).strip()
+
+
+def sequential_package_version(workspace: Path) -> str:
+    date = os.environ.get("OPENAPOC_BUILD_DATE") or dt.datetime.now(dt.UTC).strftime("%Y%m%d")
+    return f"{date}.{commit_count(workspace)}"
+
+
 def package_version(workspace: Path, explicit: str | None = None) -> str:
-    return explicit or subprocess.check_output(
+    if explicit:
+        return explicit
+    env_version = os.environ.get("OPENAPOC_PACKAGE_VERSION")
+    if env_version:
+        return env_version
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return sequential_package_version(workspace)
+    return subprocess.check_output(
         ["git", "describe", "--tags", "--long", "--always"],
         cwd=workspace,
         text=True,
@@ -161,26 +189,16 @@ def package_commit(workspace: Path, explicit: str | None = None) -> str:
 
 
 def windows_package_version(workspace: Path, explicit: str | None = None) -> str:
-    version = package_version(workspace, explicit)
-    if re.fullmatch(r"\d+-\d+-[A-Za-z0-9_.]+", version):
-        return version
+    return package_version(workspace, explicit)
 
+
+def windows_resource_version(workspace: Path) -> str:
     year = subprocess.check_output(
         ["git", "show", "-s", "--format=%cd", "--date=format:%Y", "HEAD"],
         cwd=workspace,
         text=True,
     ).strip()
-    commit_count = subprocess.check_output(
-        ["git", "rev-list", "--count", "HEAD"],
-        cwd=workspace,
-        text=True,
-    ).strip()
-    short_hash = subprocess.check_output(
-        ["git", "rev-parse", "--short", "HEAD"],
-        cwd=workspace,
-        text=True,
-    ).strip()
-    return f"{year}-{commit_count}-{short_hash}"
+    return f"{year}.{commit_count(workspace)}.0.0"
 
 
 def prepare_root(package_root: Path) -> Path:
@@ -211,7 +229,7 @@ def make_zip(source: Path, target: Path) -> None:
 
 
 def release_tag(date: dt.date | None = None) -> str:
-    return (date or dt.datetime.now(dt.UTC).date()).isoformat()
+    return (date or dt.datetime.now(dt.UTC).date()).strftime("%Y%m%d")
 
 
 def release_assets(dist_dir: Path) -> list[Path]:
@@ -282,15 +300,22 @@ def create_or_update_release(repo: str, tag: str, sha: str, auth: str) -> dict:
         return release
 
 
+def release_asset_class(filename: str) -> str:
+    for asset_class, pattern in RELEASE_ASSET_PATTERNS.items():
+        if pattern.fullmatch(filename):
+            return asset_class
+    return filename
+
+
 def upload_release_asset(repo: str, release: dict, asset: Path, auth: str) -> None:
+    asset_class = release_asset_class(asset.name)
     for existing in release.get("assets", []):
-        if existing.get("name") == asset.name:
+        if release_asset_class(existing.get("name", "")) == asset_class:
             github_request(
                 "DELETE",
                 f"{GITHUB_API}/repos/{repo}/releases/assets/{existing['id']}",
                 auth,
             )
-            break
 
     upload_url = release["upload_url"].split("{", 1)[0]
     query = urllib.parse.urlencode({"name": asset.name})
@@ -499,6 +524,7 @@ def strip_windows_dev_files(package_root: Path) -> None:
 
 def windows(args: argparse.Namespace) -> int:
     version = windows_package_version(args.workspace, args.version)
+    resource_version = windows_resource_version(args.workspace)
     commit = package_commit(args.workspace, args.commit)
     package_root = prepare_root(args.workspace / f"OpenApoc-{version}")
 
@@ -521,8 +547,14 @@ def windows(args: argparse.Namespace) -> int:
     print(archive)
 
     if args.nsis:
-        run([str(args.nsis), f"/DGAME_VERSION={version}", str(args.workspace / "packaging/windows/installer.nsi")])
-        installer_name = f"install-openapoc-{version}.exe"
+        run([
+            str(args.nsis),
+            f"/DGAME_VERSION={version}",
+            f"/DGAME_VERSION_DISPLAY={version}",
+            f"/DGAME_VERSION_RESOURCE={resource_version}",
+            str(args.workspace / "packaging/windows/installer.nsi"),
+        ])
+        installer_name = f"OpenApoc-installer-windows-{version}.exe"
         for installer in [
             args.workspace / "packaging/windows" / installer_name,
             args.workspace / installer_name,
