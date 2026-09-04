@@ -1486,6 +1486,7 @@ void GameState::weeklyPlayerUpdate()
 		else
 		{
 			int income = player->income;
+			previousWeekIncome = player->income;
 
 			// Reduce this week's income if government doesn't have enough funds
 			const int availableGovFunds = government->balance / 2;
