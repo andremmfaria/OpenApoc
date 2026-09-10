@@ -95,6 +95,8 @@ extern ConfigOptionBool optionAlternateVehicleShieldSound;
 extern ConfigOptionBool optionEnableAgentTemplates;
 extern ConfigOptionBool optionStoreDroppedEquipment;
 extern ConfigOptionBool optionFallingGroundVehicles;
+extern ConfigOptionBool optionTwoWayRoads;
+extern ConfigOptionBool optionDriveOnLeft;
 
 extern ConfigOptionBool optionEnforceCargoLimits;
 extern ConfigOptionBool optionAllowNearbyVehicleLootPickup;

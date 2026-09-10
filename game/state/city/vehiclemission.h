@@ -92,6 +92,10 @@ class GroundVehicleTileHelper : public CanEnterTileHelper
 
 	bool isMoveAllowedRoad(Scenery &scenery, int dir) const;
 	bool isMoveAllowedATV(Scenery &scenery, int dir) const;
+
+	static constexpr float LANE_OFFSET = 0.25f;
+	static Vec3<float> laneOffset(const Vec3<int> &from, const Vec3<int> &to,
+	                              const Scenery &sceneryTo, const Vehicle &v);
 };
 
 class VehicleTargetHelper

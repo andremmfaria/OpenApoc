@@ -2983,6 +2983,10 @@ bool VehicleMission::advanceAlongPath(GameState &state, Vehicle &v, Vec3<float> 
 	if (v.type->isGround())
 	{
 		destPos = tTo->getRestingPosition();
+		if (sceneryTo)
+		{
+			destPos += GroundVehicleTileHelper::laneOffset(tFrom->position, pos, *sceneryTo, v);
+		}
 	}
 	else
 	{
@@ -3569,6 +3573,31 @@ bool GroundVehicleTileHelper::isMoveAllowedATV(Scenery &scenery, int dir) const
 	}
 	LogError("Unhandled situiation in isMoveAllowedATV, can't reach here?");
 	return false;
+}
+
+Vec3<float> GroundVehicleTileHelper::laneOffset(const Vec3<int> &from, const Vec3<int> &to,
+                                                const Scenery &sceneryTo, const Vehicle &v)
+{
+	if (!config().getBool("OpenApoc.NewFeature.TwoWayRoads") || from == to ||
+	    sceneryTo.type->tile_type != SceneryTileType::TileType::Road ||
+	    sceneryTo.type->road_type == SceneryTileType::RoadType::Terminal)
+	{
+		return {0.0f, 0.0f, 0.0f};
+	}
+	int xMax = 0;
+	int yMax = 0;
+	for (const auto &s : v.type->size)
+	{
+		xMax = std::max(xMax, s.second.x);
+		yMax = std::max(yMax, s.second.y);
+	}
+	if (xMax > 1 || yMax > 1)
+	{
+		return {0.0f, 0.0f, 0.0f};
+	}
+	Vec3<int> dir = to - from;
+	float sign = config().getBool("OpenApoc.NewFeature.DriveOnLeft") ? -1.0f : 1.0f;
+	return {-(float)dir.y * LANE_OFFSET * sign, (float)dir.x * LANE_OFFSET * sign, 0.0f};
 }
 
 } // namespace OpenApoc
