@@ -81,7 +81,7 @@ void BattleItem::hopTo(GameState &state, Vec3<float> targetPosition)
 		           VELOCITY_SCALE_BATTLE;
 		// Enough to leave our home cell
 		collisionIgnoredTicks =
-		    (int)ceilf(36.0f / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
+		    (int)ceilf((float)TICK_SCALE / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
 	}
 }
 

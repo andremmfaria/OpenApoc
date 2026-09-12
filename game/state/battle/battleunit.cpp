@@ -2493,8 +2493,11 @@ void BattleUnit::updateGiveWay(GameState &state)
 							setMission(state, BattleUnitMission::gotoLocation(*this, pos, 0));
 							// 02: Turn to previous facing
 							addMission(state, BattleUnitMission::turn(*this, facing), true);
-							// 03: Give time for that unit to pass
-							addMission(state, BattleUnitMission::snooze(*this, 60), true);
+							// 03: Give time for that unit to pass (5/12s at 144 TPS, the
+							// bare tick count this replaces)
+							addMission(state,
+							           BattleUnitMission::snooze(*this, TICKS_PER_SECOND * 5 / 12),
+							           true);
 							// 04: Return to our position after we're done
 							addMission(state, BattleUnitMission::gotoLocation(*this, position, 0),
 							           true);
@@ -4025,7 +4028,8 @@ void BattleUnit::launch(GameState &state, Vec3<float> targetPosition, BodyState 
 	launched = true;
 	velocity = (glm::normalize(targetVectorXY) * velocityXY + Vec3<float>{0.0f, 0.0f, velocityZ}) *
 	           VELOCITY_SCALE_BATTLE;
-	collisionIgnoredTicks = (int)ceilf(36.0f / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
+	collisionIgnoredTicks =
+	    (int)ceilf((float)TICK_SCALE / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
 	beginBodyStateChange(state, bodyState);
 }
 
@@ -4103,7 +4107,8 @@ void BattleUnit::jumpDown(GameState &state, Vec3<float> landing, BodyState bodyS
 	launchGoal = landing;
 	launched = true;
 	velocity = glm::normalize(targetVectorXY) * 0.5f * VELOCITY_SCALE_BATTLE;
-	collisionIgnoredTicks = (int)ceilf(36.0f / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
+	collisionIgnoredTicks =
+	    (int)ceilf((float)TICK_SCALE / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
 	beginBodyStateChange(state, bodyState);
 }
 
