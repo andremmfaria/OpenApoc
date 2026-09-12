@@ -2007,7 +2007,7 @@ void BattleUnit::update(GameState &state, unsigned int ticks)
 	// Idling: Auto-movement, auto-body change when idling
 	updateIdling(state);
 	// Crying: Enemies emit sounds periodically
-	updateCrying(state);
+	updateCrying(state, ticks);
 	// Main bulk - update movement, body, hands and turning
 	{
 		bool wasUsingLift = usingLift;
@@ -2631,7 +2631,7 @@ void BattleUnit::updateIdling(GameState &state)
 	}
 }
 
-void BattleUnit::updateCrying(GameState &state)
+void BattleUnit::updateCrying(GameState &state, unsigned int ticks)
 {
 	// FIXME: Implement proper crying
 	if (!isConscious())
@@ -2648,9 +2648,10 @@ void BattleUnit::updateCrying(GameState &state)
 	{
 		return;
 	}
-	// Crying timer works on real world time, not game time, so always decrement by 1
-	ticksUntillNextCry -= 1;
-	if (ticksUntillNextCry == 0)
+	// Cry interval is a game-time duration (init/reset are seeded from TICKS_PER_SECOND), so
+	// advance it by the elapsed game ticks rather than once per update() call.
+	ticksUntillNextCry -= (int)ticks;
+	if (ticksUntillNextCry <= 0)
 	{
 		resetCryTimer(state);
 		// Cry chance in TB when it's not enemy's turn is 1/8 th
