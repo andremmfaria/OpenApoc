@@ -2300,65 +2300,77 @@ void Vehicle::update(GameState &state, unsigned int ticks)
 	manualFire = false;
 }
 
-void Vehicle::updateEachSecond(GameState &state)
+void Vehicle::updateEachSecond(GameState &state, unsigned int nSeconds)
 {
+	if (nSeconds == 0)
+	{
+		return;
+	}
 	// Consume fuel if out in city
 	if (tileObject && !crashed && !falling && !sliding)
 	{
 		// Only consume fuel if flying or moving (parked ground vehicles don't consume fuel)
 		if (!this->isIdle() || !this->type->isGround())
 		{
-			fuelSpentTicks += FUEL_SPENT_PER_SECOND;
+			fuelSpentTicks += static_cast<int>(nSeconds) * FUEL_SPENT_PER_SECOND;
 		}
-		if (fuelSpentTicks > FUEL_SPENT_PER_UNIT)
+		// A batched call can cross several FUEL_SPENT_PER_UNIT thresholds at once (turbo,
+		// a cheat-menu time skip), so this consumes ammo one unit at a time rather than
+		// the single `if` a real one-second call needed. The loop is bounded by the
+		// engine's ammo count, not by nSeconds: it always stops at 0 ammo (destroying the
+		// vehicle) or once fuelSpentTicks drops back below the threshold.
+		while (fuelSpentTicks > FUEL_SPENT_PER_UNIT)
 		{
 			fuelSpentTicks -= FUEL_SPENT_PER_UNIT;
 			sp<VEquipment> engine = getEngine();
-			if (engine && engine->type->max_ammo > 0)
+			if (!engine || engine->type->max_ammo <= 0)
 			{
-				if (engine->ammo > 0)
+				break;
+			}
+			if (engine->ammo > 0)
+			{
+				engine->ammo--;
+			}
+			// Low fuel
+			if (engine->ammo == 2)
+			{
+				if (owner == state.getPlayer())
 				{
-					engine->ammo--;
+					fw().pushEvent(new GameVehicleEvent(GameEventType::VehicleLowFuel,
+					                                    {&state, shared_from_this()}));
 				}
-				// Low fuel
-				if (engine->ammo == 2)
+			}
+			// Out of fuel, drop
+			if (engine->ammo == 0)
+			{
+				if (config().getBool("OpenApoc.NewFeature.CrashingOutOfFuel"))
 				{
 					if (owner == state.getPlayer())
 					{
-						fw().pushEvent(new GameVehicleEvent(GameEventType::VehicleLowFuel,
+						fw().pushEvent(new GameVehicleEvent(GameEventType::VehicleNoFuel,
 						                                    {&state, shared_from_this()}));
 					}
-				}
-				// Out of fuel, drop
-				if (engine->ammo == 0)
-				{
-					if (config().getBool("OpenApoc.NewFeature.CrashingOutOfFuel"))
+					if (type->isGround())
 					{
-						if (owner == state.getPlayer())
-						{
-							fw().pushEvent(new GameVehicleEvent(GameEventType::VehicleNoFuel,
-							                                    {&state, shared_from_this()}));
-						}
-						if (type->isGround())
-						{
-							crash(state, nullptr);
-						}
-						else
-						{
-							startFalling(state);
-						}
+						crash(state, nullptr);
 					}
 					else
 					{
-						if (owner == state.getPlayer())
-						{
-							fw().pushEvent(new GameSomethingDiedEvent(
-							    GameEventType::VehicleNoFuel,
-							    getFormattedVehicleNameForEventMessage(state), "", position));
-						}
-						die(state, true);
+						startFalling(state);
 					}
 				}
+				else
+				{
+					if (owner == state.getPlayer())
+					{
+						fw().pushEvent(new GameSomethingDiedEvent(
+						    GameEventType::VehicleNoFuel,
+						    getFormattedVehicleNameForEventMessage(state), "", position));
+					}
+					die(state, true);
+				}
+				// The vehicle is gone (crashed/falling/dead) - stop consuming its fuel.
+				break;
 			}
 		}
 	}
