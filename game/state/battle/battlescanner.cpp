@@ -45,7 +45,7 @@ void BattleScanner::update(GameState &state, unsigned int ticks)
 		updateTicksAccumulated -= TICKS_PER_SCANNER_UPDATE;
 		for (size_t i = 0; i < movementTicks.size(); i++)
 		{
-			if (movementTicks[i] > TICKS_PER_SCANNER_UPDATE)
+			if (movementTicks[i] > (int)TICKS_PER_SCANNER_UPDATE)
 			{
 				movementTicks[i] -= TICKS_PER_SCANNER_UPDATE;
 				changed = true;
