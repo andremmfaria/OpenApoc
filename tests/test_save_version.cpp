@@ -65,8 +65,8 @@ bool test_fresh_save_writes_numeric_version()
 		         "found in a freshly written save");
 		return false;
 	}
-	UString valueStr = contents.substr(openPos + openTag.size(),
-	                                   closePos - (openPos + openTag.size()));
+	UString valueStr =
+	    contents.substr(openPos + openTag.size(), closePos - (openPos + openTag.size()));
 	unsigned int writtenVersion = 0;
 	try
 	{
