@@ -38,6 +38,10 @@ static void extractDifficulty(const InitialGameStateExtractor &e, UString output
 	{
 		s.loadGame(patchPath);
 	}
+	// Stamp what this run of the extractors baked in (eg pre-multiplied tick-denominated values),
+	// so a future load-time rescale can tell freshly re-extracted data from stale data. Set last
+	// so it survives regardless of what the patch data does or doesn't touch.
+	s.dataVersion = CURRENT_BAKED_DATA_VERSION;
 	s.saveGame(outputPath, true);
 }
 
@@ -85,6 +89,8 @@ std::map<UString, std::function<void(const InitialGameStateExtractor &e)>> thing
 	     GameState s;
 	     e.extractCommon(s);
 	     s.loadGame("data/common_patch");
+	     // See the matching comment in extractDifficulty() above.
+	     s.dataVersion = CURRENT_BAKED_DATA_VERSION;
 	     s.saveGame(outputPath.get() + "/mods/base/base_gamestate");
 	     ModInfo info;
 	     info.setName("OpenApoc base game");

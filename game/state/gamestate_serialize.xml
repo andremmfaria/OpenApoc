@@ -74,6 +74,7 @@
     <member>fundingTerminated</member>
     <member>firstDetection</member>
     <member>nextInvasion</member>
+    <member>dataVersion</member>
   </object>
   <object external="true">
     <name>BattleMapTileset</name>

@@ -53,6 +53,17 @@ class UFOMissionPreference;
 static const int MAX_MESSAGES = 50;
 static const bool UPDATE_EVERY_TICK = false;
 
+// Schema version of the save format itself (header field written by GameState::serialize() /
+// read by GameState::deserialize(), independent of any single member's value). Saves written
+// before this field existed are treated as version 0.
+static const unsigned int CURRENT_SAVE_FORMAT_VERSION = 1;
+
+// Version stamp carried by generated gamestate data (baked in by the extractors), distinct from
+// the save format version above: this tells a future load-time rescale whether a piece of
+// gamestate content (eg baked tick-denominated values) was produced by the current extractors or
+// is left over from before they last changed. Data without this field defaults to 0.
+static const unsigned int CURRENT_BAKED_DATA_VERSION = 1;
+
 class GameScore
 {
   public:
@@ -120,6 +131,10 @@ class GameState : public std::enable_shared_from_this<GameState>
 	bool fundingTerminated = false;
 	bool firstDetection = false;
 	uint64_t nextInvasion = 0;
+	// Baked-data version stamp, see CURRENT_BAKED_DATA_VERSION. Set by the extractors when they
+	// generate gamestate content; 0 means the data predates this field (hand-edited patches
+	// inherit whatever value the state already had when they were loaded on top of it).
+	uint64_t dataVersion = 0;
 
 	StateRefMap<AgentType> agent_types;
 	StateRefMap<AgentBodyType> agent_body_types;
@@ -209,6 +224,11 @@ class GameState : public std::enable_shared_from_this<GameState>
 
 	// deserializes gamestate from archive
 	bool deserialize(SerializationArchive *archive);
+
+	// Migration hook: transforms a just-deserialized state from an older save format version up
+	// to CURRENT_SAVE_FORMAT_VERSION. Called once by deserialize() right after the state has been
+	// loaded. fromVersion 0 covers every save written before the version field existed.
+	void migrateSaveFormat(unsigned int fromVersion);
 
 	// Called on a newly started Game to setup initial state that isn't serialized in (random
 	// vehicle positions etc.) - it is not called
