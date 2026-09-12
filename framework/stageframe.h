@@ -23,4 +23,11 @@ struct StageFrame
 	uint64_t elapsedRealUs;
 };
 
+// Ceiling Framework::run applies to elapsedRealUs before constructing a StageFrame, so a
+// stall (load screen, alt-tab, breakpoint) cannot hand any stage a multi-second delta.
+// Tick-consuming views apply the same bound again at their own accumulator (see
+// framework/tickaccumulator.h), which keeps the accumulator fully self-contained and
+// independently testable rather than trusting it is always fed pre-clamped input.
+static constexpr uint64_t STAGE_FRAME_CLAMP_US = 250000;
+
 }; // namespace OpenApoc

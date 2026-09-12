@@ -21,6 +21,7 @@ set (FRAMEWORK_SOURCE_FILES
 	serialization/providers/zipdataprovider.cpp
 	sound.cpp
 	stagestack.cpp
+	tickaccumulator.cpp
 	video/smk.cpp
 	logger_sdldialog.cpp
 	logger_file.cpp
@@ -54,6 +55,7 @@ set (FRAMEWORK_HEADER_FILES
 	stage.h
 	stageframe.h
 	stagestack.h
+	tickaccumulator.h
 	video.h
 	options.h
 	modinfo.h)

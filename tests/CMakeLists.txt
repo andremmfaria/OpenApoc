@@ -1,7 +1,8 @@
 PROJECT (OpenApoc_Tests CXX C)
 
 set (TEST_LIST test_rect test_voxel test_tilemap test_rng test_images
-		test_unicode test_colour test_backtrace test_strings test_gametime)
+		test_unicode test_colour test_backtrace test_strings test_gametime
+		test_tickaccumulator)
 
 foreach(TEST ${TEST_LIST})
 		add_executable(${TEST} ${TEST}.cpp)

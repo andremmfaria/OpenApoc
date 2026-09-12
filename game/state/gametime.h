@@ -14,6 +14,34 @@ static constexpr unsigned TICKS_PER_HOUR = TICKS_PER_MINUTE * 60;
 static constexpr unsigned TICKS_PER_DAY = TICKS_PER_HOUR * 24;
 static constexpr unsigned TURBO_TICKS = 5 * 60 * TICKS_PER_SECOND;
 
+/*
+    The original game's speed constant, at OpenApoc's tick resolution.
+
+    The original accumulates `speed_value` once per its own real-time frame (a busy-wait
+    pinned to 1193182 / 65536 Hz, ~18.206512 Hz) into a fixed-point counter where 36 units
+    make one game second (see plans/997-original-pacing.md). Folding that /36 into
+    TICKS_MULTIPLIER's ticks-per-vanilla-unit conversion gives an exact ticks-per-real-
+    second rational:
+
+        ticksPerSecond = (ratioNumerator / ratioDenominator) * TICKS_MULTIPLIER
+                         * 1193182 / 65536
+
+    `ratioDenominator` exists so a non-integer ratio (battle's provisional 0.5x tier)
+    stays an exact fraction instead of being truncated. The result is meant to drive a
+    TickAccumulator (framework/tickaccumulator.h) directly; no floating point is used.
+*/
+struct VanillaTickRate
+{
+	uint64_t numerator;
+	uint64_t denominator;
+};
+
+constexpr VanillaTickRate vanillaTickRate(uint64_t ratioNumerator, uint64_t ratioDenominator = 1)
+{
+	return VanillaTickRate{ratioNumerator * static_cast<uint64_t>(TICKS_MULTIPLIER) * 1193182ull,
+	                       ratioDenominator * 65536ull};
+}
+
 class GameTime
 {
   private:
