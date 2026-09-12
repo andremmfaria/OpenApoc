@@ -20,6 +20,7 @@
 #include "framework/options.h"
 #include "framework/renderer.h"
 #include "framework/sound.h"
+#include "framework/uicadence.h"
 #include "game/state/battle/battle.h"
 #include "game/state/battle/battlehazard.h"
 #include "game/state/battle/battleitem.h"
@@ -68,6 +69,15 @@ static const int TICKS_HIDE_DISPLAY = TICKS_PER_SECOND;
 static const int TICKS_END_MISSION = TICKS_PER_TURN;
 static const std::set<BodyPart> bodyParts{BodyPart::Body, BodyPart::Helmet, BodyPart::LeftArm,
                                           BodyPart::Legs, BodyPart::RightArm};
+
+// UI real-time durations (StageFrame::elapsedRealUs), not frame counts - see
+// framework/uicadence.h. Each value is expressed as "N frames at the original 60 FPS baseline"
+// so the derivation from the old literal stays visible, even though the result no longer
+// depends on the actual frame rate.
+static const uint64_t THROW_RETRY_DELAY_US = US_PER_SECOND * 5 / 60;
+static const uint64_t PATH_PREVIEW_HOVER_DELAY_US = US_PER_SECOND / 2; // "over half a second"
+static const uint64_t ATTACK_COST_CALC_DELAY_US = US_PER_SECOND * 5 / 60;
+static const uint64_t ACTION_IMPOSSIBLE_CURSOR_DELAY_US = US_PER_SECOND * 40 / 60;
 
 static const int NUM_TABS_RT = 3;
 static const int NUM_TABS_TB = 4;
@@ -1112,11 +1122,11 @@ BattleView::BattleView(sp<GameState> gameState)
 		{
 			if (right)
 			{
-				this->rightThrowDelay = 5;
+				this->rightThrowDelayUs = THROW_RETRY_DELAY_US;
 			}
 			else
 			{
-				this->leftThrowDelay = 5;
+				this->leftThrowDelayUs = THROW_RETRY_DELAY_US;
 			}
 			return;
 		}
@@ -1464,10 +1474,13 @@ void BattleView::render()
 	// Pause icon
 	if (battle.mode == Battle::Mode::TurnBased)
 	{
-		int PAUSE_ICON_BLINK_TIME = 30;
+		// Cosmetic blink cadence (framework/uicadence.h), not a real duration - the pause icon
+		// carries no gameplay meaning either way, unlike throw/attack delays that gate actions.
+		// "30 frames at the original 60 FPS baseline" for one on/off half-cycle.
+		int pauseIconBlinkTime = std::max(1, uiCosmeticFramesPerSecond() / 2);
 		pauseIconTimer++;
-		pauseIconTimer %= PAUSE_ICON_BLINK_TIME * 2;
-		if (updateSpeed == BattleUpdateSpeed::Pause && pauseIconTimer > PAUSE_ICON_BLINK_TIME)
+		pauseIconTimer %= pauseIconBlinkTime * 2;
+		if (updateSpeed == BattleUpdateSpeed::Pause && pauseIconTimer > pauseIconBlinkTime)
 		{
 			fw().renderer->draw(
 			    pauseIcon, {fw().displayGetSize().x - pauseIconOffsetX - pauseIcon->size.x, 0.0f});
@@ -1668,37 +1681,27 @@ void BattleView::update(const StageFrame &frame)
 	}
 
 	updateSelectedUnits();
-	updateSelectionMode();
+	updateSelectionMode(frame.elapsedRealUs);
 	updateSoldierButtons();
 
-	if (ticksUntilFireSound > 0)
-	{
-		ticksUntilFireSound--;
-	}
-	if (leftThrowDelay > 0)
-	{
-		leftThrowDelay--;
-	}
-	if (rightThrowDelay > 0)
-	{
-		rightThrowDelay--;
-	}
+	fireSoundDelayUs -= std::min(fireSoundDelayUs, frame.elapsedRealUs);
+	leftThrowDelayUs -= std::min(leftThrowDelayUs, frame.elapsedRealUs);
+	rightThrowDelayUs -= std::min(rightThrowDelayUs, frame.elapsedRealUs);
 	// Update preview calculations in TB mode
 	if (!realTime)
 	{
 		if (previewedPathCost == PreviewedPathCostSpecial::NONE)
 		{
-			pathPreviewTicksAccumulated++;
-			// Show path preview if hovering for over half a second
-			if (pathPreviewTicksAccumulated > 30)
+			pathPreviewElapsedUs += frame.elapsedRealUs;
+			if (pathPreviewElapsedUs > PATH_PREVIEW_HOVER_DELAY_US)
 			{
 				updatePathPreview();
 			}
 		}
 		if (calculatedAttackCost == CalculatedAttackCostSpecial::NONE)
 		{
-			attackCostTicksAccumulated++;
-			if (attackCostTicksAccumulated > 5)
+			attackCostElapsedUs += frame.elapsedRealUs;
+			if (attackCostElapsedUs > ATTACK_COST_CALC_DELAY_US)
 			{
 				updateAttackCost();
 			}
@@ -1956,7 +1959,7 @@ void BattleView::updateSelectedUnits()
 	}
 }
 
-void BattleView::updateSelectionMode()
+void BattleView::updateSelectionMode(uint64_t elapsedRealUs)
 {
 	if (battle.battleViewSelectedUnits.empty())
 	{
@@ -2091,7 +2094,7 @@ void BattleView::updateSelectionMode()
 			break;
 		case BattleSelectionState::ThrowLeft:
 		case BattleSelectionState::ThrowRight:
-			if (actionImpossibleDelay > 0)
+			if (actionImpossibleDelayUs > 0)
 			{
 				fw().getCursor().CurrentType = ApocCursor::CursorType::NoTarget;
 			}
@@ -2116,7 +2119,7 @@ void BattleView::updateSelectionMode()
 			break;
 		case BattleSelectionState::TeleportLeft:
 		case BattleSelectionState::TeleportRight:
-			if (actionImpossibleDelay > 0)
+			if (actionImpossibleDelayUs > 0)
 			{
 				fw().getCursor().CurrentType = ApocCursor::CursorType::NoTeleport;
 			}
@@ -2126,7 +2129,7 @@ void BattleView::updateSelectionMode()
 			}
 			break;
 	}
-	actionImpossibleDelay--;
+	actionImpossibleDelayUs -= std::min(actionImpossibleDelayUs, elapsedRealUs);
 }
 
 void BattleView::updateSoldierButtons()
@@ -2289,10 +2292,10 @@ void BattleView::updateSoldierButtons()
 	                battle.battleViewSelectedUnits.front()->isThrowing();
 
 	mainTab->findControlTyped<CheckBox>("BUTTON_LEFT_HAND_THROW")
-	    ->setChecked(selectionState == BattleSelectionState::ThrowLeft || leftThrowDelay > 0 ||
+	    ->setChecked(selectionState == BattleSelectionState::ThrowLeft || leftThrowDelayUs > 0 ||
 	                 throwing);
 	mainTab->findControlTyped<CheckBox>("BUTTON_RIGHT_HAND_THROW")
-	    ->setChecked(selectionState == BattleSelectionState::ThrowRight || rightThrowDelay > 0 ||
+	    ->setChecked(selectionState == BattleSelectionState::ThrowRight || rightThrowDelayUs > 0 ||
 	                 throwing);
 }
 
@@ -2705,7 +2708,7 @@ void BattleView::orderThrow(Vec3<int> target, bool right)
 	}
 	else
 	{
-		actionImpossibleDelay = 40;
+		actionImpossibleDelayUs = ACTION_IMPOSSIBLE_CURSOR_DELAY_US;
 		return;
 	}
 }
@@ -2975,7 +2978,7 @@ void BattleView::orderTeleport(Vec3<int> target, bool right)
 	}
 	else
 	{
-		actionImpossibleDelay = 40;
+		actionImpossibleDelayUs = ACTION_IMPOSSIBLE_CURSOR_DELAY_US;
 		LogWarning("BattleUnit \"{0}\" could not teleport using item in {1} hand ",
 		           unit->agent->name, right ? "right" : "left");
 	}

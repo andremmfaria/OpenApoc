@@ -1,10 +1,13 @@
 #pragma once
 
+#include "framework/uicadence.h"
 #include "game/state/battle/battleunit.h"
 #include "game/ui/tileview/tileview.h"
 #include "library/enum_traits.h"
 #include "library/sp.h"
 #include "library/vec.h"
+#include <algorithm>
+#include <cstdint>
 #include <list>
 #include <vector>
 
@@ -19,18 +22,32 @@ class Image;
 class BattleTileView : public TileView
 {
   protected:
-	// Formula: FPS / DESIRED_ANIMATIONS_PER_SECOND
+	// Cosmetic, frame-counted icon-rotation cadences (framework/uicadence.h) - not real
+	// durations. Formula: uiCosmeticFramesPerSecond() / DESIRED_ANIMATIONS_PER_SECOND.
 
-	static const int TARGET_ICONS_ANIMATION_DELAY = 60 / 4;
-	static const int HEALING_ICON_ANIMATION_DELAY = 60 / 4;
-	static const int PSI_ICON_ANIMATION_DELAY = 60 / 4;
-	static const int LOWMORALE_ICON_ANIMATION_DELAY = 60 / 2;
+	static int TARGET_ICONS_ANIMATION_DELAY()
+	{
+		return std::max(1, uiCosmeticFramesPerSecond() / 4);
+	}
+	static int HEALING_ICON_ANIMATION_DELAY()
+	{
+		return std::max(1, uiCosmeticFramesPerSecond() / 4);
+	}
+	static int PSI_ICON_ANIMATION_DELAY() { return std::max(1, uiCosmeticFramesPerSecond() / 4); }
+	static int LOWMORALE_ICON_ANIMATION_DELAY()
+	{
+		return std::max(1, uiCosmeticFramesPerSecond() / 2);
+	}
 
 	// Total amount of different focus icon states
 	static const int FOCUS_ICONS_ANIMATION_FRAMES = 4;
 
 	// Formula: FPS / FOCUS_ICONS_ANIMATION_FRAMES(both ways) / DESIRED_ANIMATIONS_PER_SECOND
-	static const int FOCUS_ICONS_ANIMATION_DELAY = 60 / (2 * FOCUS_ICONS_ANIMATION_FRAMES - 2) / 2;
+	static int FOCUS_ICONS_ANIMATION_DELAY()
+	{
+		return std::max(1,
+		                uiCosmeticFramesPerSecond() / (2 * FOCUS_ICONS_ANIMATION_FRAMES - 2) / 2);
+	}
 
   public:
 	enum class LayerDrawingMode
@@ -87,6 +104,11 @@ class BattleTileView : public TileView
 
 	bool colorForward = true;
 	int colorCurrent = 0;
+	// Cosmetic palette-pulse cadence: steps colorCurrent once every PALETTE_PULSE_DELAY()
+	// update() calls instead of every call, so the pulse keeps its original ~60-step/s rate
+	// (framework/uicadence.h) instead of speeding up 1:1 with the render loop's cadence.
+	int paletteStepTicksAccumulated = 0;
+	static int PALETTE_PULSE_DELAY() { return std::max(1, uiCosmeticFramesPerSecond() / 60); }
 	sp<Palette> palette;
 	std::vector<sp<Palette>> modPalette;
 
@@ -100,15 +122,22 @@ class BattleTileView : public TileView
 	StateRef<BattleUnit> lastSelectedUnit;
 	Vec3<int> lastSelectedUnitPosition;
 	Vec2<int> lastSelectedUnitFacing;
-	int ticksUntilFireSound = 0;
+	// Real-time debounce (StageFrame::elapsedRealUs) against replaying the burn sample while
+	// it is still playing - the sample's own duration, not a frame count: it gates whether a
+	// sound replays, so it must stay accurate regardless of frame rate.
+	uint64_t fireSoundDelayUs = 0;
 
-	int hiddenBarTicksAccumulated = 0;
+	// Real-time debounce (StageFrame::elapsedRealUs) between hidden-unit-bar refreshes while
+	// hideDisplay is active. Named HIDDEN_BAR_REFRESH_DELAY_US in battletileview.cpp.
+	uint64_t hiddenBarElapsedUs = 0;
 	void updateHiddenBar();
 
 	sp<Image> pathPreviewTooFar;
 	sp<Image> pathPreviewUnreachable;
 	std::list<Vec3<int>> pathPreview;
-	int pathPreviewTicksAccumulated = 0;
+	// Real-time hover duration (StageFrame::elapsedRealUs), not a frame count - see
+	// battleview.cpp's PATH_PREVIEW_HOVER_DELAY_US.
+	uint64_t pathPreviewElapsedUs = 0;
 	enum class PreviewedPathCostSpecial : int
 	{
 		UNREACHABLE = -3,
@@ -120,7 +149,9 @@ class BattleTileView : public TileView
 
 	sp<Image> attackCostOutOfRange;
 	sp<Image> attackCostNoArc;
-	int attackCostTicksAccumulated = 0;
+	// Real-time debounce (StageFrame::elapsedRealUs), not a frame count - see
+	// battleview.cpp's ATTACK_COST_CALC_DELAY_US.
+	uint64_t attackCostElapsedUs = 0;
 	enum class CalculatedAttackCostSpecial : int
 	{
 		NO_WEAPON = -4,
