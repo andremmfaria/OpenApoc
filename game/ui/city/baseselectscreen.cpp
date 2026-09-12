@@ -129,7 +129,7 @@ void BaseSelectScreen::render()
 			Vec2<float> screenPosB = this->tileToOffsetScreenCoords(posB);
 
 			// Apply offset to borders every half-second
-			if (counter >= COUNTER_MAX / 2)
+			if (counter >= COUNTER_MAX() / 2)
 			{
 				screenPosA -= Vec2<float>{2.0f, 2.0f};
 				screenPosB += Vec2<float>{2.0f, 2.0f};
