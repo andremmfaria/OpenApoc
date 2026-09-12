@@ -108,6 +108,7 @@ extern ConfigOptionBool optionMarketRight;
 extern ConfigOptionBool optionDGCrashingVehicles;
 extern ConfigOptionBool optionFuelCrashingVehicles;
 extern ConfigOptionBool optionSkipTurbo;
+extern ConfigOptionBool optionLegacySpeeds;
 extern ConfigOptionBool optionRunAndKneel;
 extern ConfigOptionBool optionSeedRng;
 extern ConfigOptionBool optionAutoReload;
