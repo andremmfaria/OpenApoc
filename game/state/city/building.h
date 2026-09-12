@@ -95,7 +95,10 @@ class Building : public StateObject<Building>, public std::enable_shared_from_th
 	void decreasePendingInvestigatorCount(GameState &state);
 	bool hasAliens() const;
 	void updateDetection(GameState &state, unsigned int ticks);
-	void updateCargo(GameState &state);
+	// nSeconds is unused beyond a zero check: expiry is jump-evaluable (Cargo checks an
+	// absolute expirationDate) and a ferry is spawned for the whole backlog in one call
+	// already, so nothing here needs to scale with how many seconds this call represents.
+	void updateCargo(GameState &state, unsigned int nSeconds);
 	void detect(GameState &state, bool forced = false);
 	void alienGrowth(GameState &state);
 	void alienMovement(GameState &state);

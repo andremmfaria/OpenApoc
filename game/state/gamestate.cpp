@@ -1129,23 +1129,34 @@ void GameState::update(unsigned int ticks)
 		{
 			invasion();
 		}
-		if (gameTime.secondPassed())
+		// updateEndOfSecond is batched (one pass over buildings/vehicles/agents, with
+		// fuel/cargo scaled by nSeconds inside) rather than called once per elapsed
+		// second: a single addTicks() call can now report many seconds at once (turbo, a
+		// cheat-menu time skip), and calling a full-entity-iteration function that many
+		// times per invocation is the naive catch-up cost SS3.5 exists to avoid.
+		if (gameTime.secondsElapsed() > 0)
 		{
-			this->updateEndOfSecond();
+			this->updateEndOfSecond(static_cast<unsigned int>(gameTime.secondsElapsed()));
 		}
-		if (gameTime.fiveMinutesPassed())
+		// The five-minute/hour/day/week handlers are not batched: their work (detection,
+		// org takeover, research, invasion) isn't linear or jump-evaluable the way fuel
+		// and cargo expiry are, and in practice they only run more than once per call for
+		// the cheat menu's large single-call time skips, not for turbo (which is chunked
+		// finely enough that a call never spans more than one of these boundaries) - so a
+		// plain loop here is a one-off cost on a debug action, not a sustained per-frame one.
+		for (uint64_t i = 0; i < gameTime.fiveMinutePeriodsElapsed(); i++)
 		{
 			this->updateEndOfFiveMinutes();
 		}
-		if (gameTime.hourPassed())
+		for (uint64_t i = 0; i < gameTime.hoursElapsed(); i++)
 		{
 			this->updateEndOfHour();
 		}
-		if (gameTime.dayPassed())
+		for (uint64_t i = 0; i < gameTime.daysElapsed(); i++)
 		{
 			this->updateEndOfDay();
 		}
-		if (gameTime.weekPassed())
+		for (uint64_t i = 0; i < gameTime.weeksElapsed(); i++)
 		{
 			this->updateEndOfWeek(false);
 		}
@@ -1157,24 +1168,24 @@ void GameState::update(unsigned int ticks)
 	}
 }
 
-void GameState::updateEndOfSecond()
+void GameState::updateEndOfSecond(unsigned int nSeconds)
 {
 	for (auto &b : current_city->buildings)
 	{
-		b->updateCargo(*this);
+		b->updateCargo(*this, nSeconds);
 	}
 	for (auto &v : vehicles)
 	{
 		if (v.second->city == current_city)
 		{
-			v.second->updateEachSecond(*this);
+			v.second->updateEachSecond(*this, nSeconds);
 		}
 	}
 	for (auto &a : this->agents)
 	{
 		if (a.second->city == current_city)
 		{
-			a.second->updateEachSecond(*this);
+			a.second->updateEachSecond(*this, nSeconds);
 		}
 	}
 }

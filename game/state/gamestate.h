@@ -256,7 +256,10 @@ class GameState : public std::enable_shared_from_this<GameState>
 	void updateBeforeBattle();
 	void updateAfterBattle();
 
-	void updateEndOfSecond();
+	// nSeconds is how many game-seconds this call represents (see GameTime::secondsElapsed):
+	// a single call to update() can now report several, so this does one pass over
+	// buildings/vehicles/agents rather than being called nSeconds times.
+	void updateEndOfSecond(unsigned int nSeconds);
 	void updateEndOfFiveMinutes();
 	void updateEndOfHour();
 	void updateEndOfDay();

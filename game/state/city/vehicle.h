@@ -374,7 +374,10 @@ class Vehicle : public StateObject<Vehicle>,
 	bool getNewGoal(GameState &state, int &turboTiles);
 
 	void update(GameState &state, unsigned int ticks);
-	void updateEachSecond(GameState &state);
+	// nSeconds is the number of game-seconds this call represents, not a tick count: fuel
+	// accrual is linear in it, so batching several seconds into one call is a fixed-cost
+	// jump rather than nSeconds repeated per-entity passes.
+	void updateEachSecond(GameState &state, unsigned int nSeconds);
 	void updateCargo(GameState &state);
 	void updateSprite(GameState &state);
 

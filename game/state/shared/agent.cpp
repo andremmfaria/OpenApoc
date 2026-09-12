@@ -1061,8 +1061,12 @@ void Agent::update(GameState &state, unsigned ticks)
 	}
 }
 
-void Agent::updateEachSecond(GameState &state)
+void Agent::updateEachSecond(GameState &state, unsigned int nSeconds)
 {
+	if (nSeconds == 0)
+	{
+		return;
+	}
 	if (type->role != AgentType::Role::Soldier && currentBuilding != homeBuilding &&
 	    missions.empty())
 	{

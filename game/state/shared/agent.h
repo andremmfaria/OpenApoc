@@ -201,7 +201,10 @@ class Agent : public StateObject<Agent>,
 
 	// Update agent in city
 	void update(GameState &state, unsigned ticks);
-	void updateEachSecond(GameState &state);
+	// nSeconds is unused beyond a zero check: assigning the gotoBuilding mission is
+	// idempotent (it only fires once, when missions is empty), so it need not scale with
+	// how many seconds this call represents.
+	void updateEachSecond(GameState &state, unsigned int nSeconds);
 	void updateDaily(GameState &state);
 	void updateHourly(GameState &state);
 	void updateMovement(GameState &state, unsigned ticks);
