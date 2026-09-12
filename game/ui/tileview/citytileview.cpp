@@ -308,10 +308,10 @@ void CityTileView::render()
 	// Rotate Icons
 	{
 		selectionFrameTicksAccumulated++;
-		selectionFrameTicksAccumulated %= 2 * SELECTION_FRAME_ANIMATION_DELAY;
+		selectionFrameTicksAccumulated %= 2 * SELECTION_FRAME_ANIMATION_DELAY();
 		portalImageTicksAccumulated++;
 		portalImageTicksAccumulated %=
-		    state.city_common_image_list->portalStrategic.size() * PORTAL_FRAME_ANIMATION_DELAY;
+		    state.city_common_image_list->portalStrategic.size() * PORTAL_FRAME_ANIMATION_DELAY();
 	}
 
 	// screenOffset.x/screenOffset.y is the 'amount added to the tile coords' - so we want
@@ -639,7 +639,7 @@ void CityTileView::render()
 				Vec2<float> screenPosB = this->tileToOffsetScreenCoords(posB);
 
 				// Apply offset to borders every half-second
-				if (counter >= COUNTER_MAX / 2)
+				if (counter >= COUNTER_MAX() / 2)
 				{
 					screenPosA -= Vec2<float>{2.0f, 2.0f};
 					screenPosB += Vec2<float>{2.0f, 2.0f};
@@ -684,7 +684,7 @@ void CityTileView::render()
 					Vec2<float> screenPosB = this->tileToOffsetScreenCoords(posB);
 
 					// Apply offset to borders every half-second
-					if (counter >= COUNTER_MAX / 2)
+					if (counter >= COUNTER_MAX() / 2)
 					{
 						screenPosA -= Vec2<float>{2.0f, 2.0f};
 						screenPosB += Vec2<float>{2.0f, 2.0f};
@@ -818,7 +818,8 @@ void CityTileView::render()
 				           tileToOffsetScreenCoords(std::get<1>(obj)),
 				           std::get<3>(obj) ? lineColorEnemy : lineColorFriend);
 				// Draw location image at target tile
-				if (targetDrawn && selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY)
+				if (targetDrawn &&
+				    selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY())
 				{
 					r.draw(targetTacticalThisLevel,
 					       tileToOffsetScreenCoords(std::get<0>(obj)) + offsetStrat);
@@ -836,7 +837,7 @@ void CityTileView::render()
 				       tileToOffsetScreenCoords(a.second->position) -
 				           (Vec2<float>)state.city_common_image_list->agentStrategic->size / 2.0f);
 				// Draw unit selection brackets
-				if (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY)
+				if (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY())
 				{
 					bool selected =
 					    !state.current_city->cityViewSelectedSoldiers.empty() &&
@@ -856,7 +857,7 @@ void CityTileView::render()
 			{
 				auto portalImage =
 				    state.city_common_image_list->portalStrategic[portalImageTicksAccumulated /
-				                                                  PORTAL_FRAME_ANIMATION_DELAY];
+				                                                  PORTAL_FRAME_ANIMATION_DELAY()];
 				r.draw(portalImage, tileToOffsetScreenCoords(p->position) -
 				                        (Vec2<float>)portalImage->size / 2.0f);
 			}
@@ -876,7 +877,7 @@ void CityTileView::render()
 					                              std::get<1>(obj), std::get<2>(obj));
 				}
 				// Draw unit selection brackets
-				if (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY)
+				if (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY())
 				{
 					auto selected = std::get<3>(obj);
 					if (selected)
@@ -985,7 +986,7 @@ void CityTileView::render()
 			}
 
 			// Building selection brackets
-			if (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY)
+			if (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY())
 			{
 				for (auto &b : buildingsSelected)
 				{
@@ -1012,14 +1013,20 @@ void CityTileView::render()
 void CityTileView::update(const StageFrame &frame)
 {
 	TileView::update(frame);
-	counter = (counter + 1) % COUNTER_MAX;
+	counter = (counter + 1) % COUNTER_MAX();
 
-	// Pulsate palette colors
-	colorCurrent += colorForward;
-	if (colorCurrent <= 0 || colorCurrent >= 15)
+	// Pulsate palette colors, stepping once every PALETTE_PULSE_DELAY() calls rather than
+	// every call so the pulse rate stays anchored to real time (framework/uicadence.h).
+	paletteStepTicksAccumulated++;
+	if (paletteStepTicksAccumulated >= PALETTE_PULSE_DELAY())
 	{
-		colorCurrent = clamp(colorCurrent, 0, 15);
-		colorForward = -colorForward;
+		paletteStepTicksAccumulated = 0;
+		colorCurrent += colorForward;
+		if (colorCurrent <= 0 || colorCurrent >= 15)
+		{
+			colorCurrent = clamp(colorCurrent, 0, 15);
+			colorForward = -colorForward;
+		}
 	}
 
 	// The palette fades from pal_03 at 3am to pal_02 at 6am then pal_01 at 9am

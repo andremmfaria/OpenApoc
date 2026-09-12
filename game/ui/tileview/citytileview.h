@@ -32,6 +32,11 @@ class CityTileView : public TileView
 
 	int colorForward = 1;
 	int colorCurrent = 0;
+	// Cosmetic palette-pulse cadence: steps colorCurrent once every PALETTE_PULSE_DELAY()
+	// update() calls instead of every call, so the pulse keeps its original ~60-step/s rate
+	// (framework/uicadence.h) instead of speeding up 1:1 with the render loop's cadence.
+	int paletteStepTicksAccumulated = 0;
+	static int PALETTE_PULSE_DELAY() { return std::max(1, uiCosmeticFramesPerSecond() / 60); }
 
 	std::vector<sp<Palette>> mod_day_palette;
 	std::vector<sp<Palette>> mod_twilight_palette;
@@ -41,7 +46,9 @@ class CityTileView : public TileView
 	std::vector<int> interpolated_palette_minute;
 
   protected:
-	static const int COUNTER_MAX = 50;
+	// Cosmetic border-pulse cadence (framework/uicadence.h) - "50 frames at the original
+	// 60 FPS baseline" for one full pulse cycle.
+	static int COUNTER_MAX() { return std::max(2, uiCosmeticFramesPerSecond() * 50 / 60); }
 	int counter = 0;
 
   public:
