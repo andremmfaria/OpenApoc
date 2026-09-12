@@ -5,6 +5,7 @@
 #include "framework/data.h"
 #include "framework/event.h"
 #include "framework/filesystem.h"
+#include "framework/frametiming.h"
 #include "framework/image.h"
 #include "framework/jukebox.h"
 #include "framework/logger_file.h"
@@ -311,15 +312,6 @@ void Framework::run(sp<Stage> initialStage)
 	size_t frame = 0;
 	LogInfo("Program loop started");
 
-	int targetFPS = Options::targetFPS.get();
-	if (targetFPS <= 0)
-	{
-		LogWarning("Options.Framework.TargetFPS was {0}, must be > 0 - falling back to 60",
-		           targetFPS);
-		targetFPS = 60;
-	}
-	auto target_frame_duration = std::chrono::duration<int64_t, std::micro>(1000000 / targetFPS);
-
 	p->ProgramStages.push(initialStage);
 
 	this->renderer->setPalette(this->data->loadPalette("xcom3/ufodata/pal_06.dat"));
@@ -327,11 +319,30 @@ void Framework::run(sp<Stage> initialStage)
 	auto last_frame_time = expected_frame_time;
 
 	bool frame_time_limited_warning_shown = false;
+	bool negative_target_fps_warning_shown = false;
 
 	while (!p->quitProgram)
 	{
+		// Re-read and re-derive every iteration, not cached across the loop, so a frame rate
+		// limit change from the pause menu's More Options screen applies to the very next
+		// frame with no restart.
+		int targetFPS = Options::targetFPS.get();
+		if (targetFPS < 0)
+		{
+			if (!negative_target_fps_warning_shown)
+			{
+				LogWarning("Options.Framework.TargetFPS was {0}, must be >= 0 (0 = unlimited) - "
+				           "falling back to 60",
+				           targetFPS);
+				negative_target_fps_warning_shown = true;
+			}
+			targetFPS = 60;
+		}
+		FrameDuration frameDuration = frameDurationForTargetFPS(targetFPS);
+		auto target_frame_duration = std::chrono::microseconds(frameDuration.durationUs);
+
 		auto frame_time_now = std::chrono::steady_clock::now();
-		if (expected_frame_time > frame_time_now)
+		if (!frameDuration.unlimited && expected_frame_time > frame_time_now)
 		{
 			auto time_to_sleep = expected_frame_time - frame_time_now;
 			auto time_to_sleep_us =
@@ -343,12 +354,26 @@ void Framework::run(sp<Stage> initialStage)
 		auto elapsedRealUs =
 		    std::chrono::duration_cast<std::chrono::microseconds>(frame_time_now - last_frame_time);
 		last_frame_time = frame_time_now;
-		if (elapsedRealUs.count() > static_cast<int64_t>(STAGE_FRAME_CLAMP_US))
+		bool stalled = elapsedRealUs.count() > static_cast<int64_t>(STAGE_FRAME_CLAMP_US);
+		if (stalled)
 		{
 			// A stall (load screen, alt-tab, a debugger break) - resync the pacer to now
 			// instead of scheduling a burst of catch-up iterations to make up the gap, and
-			// clamp what the stage sees this frame (see STAGE_FRAME_CLAMP_US).
+			// clamp what the stage sees this frame (see STAGE_FRAME_CLAMP_US). This clamp
+			// applies regardless of the frame rate limit, since it protects the tick
+			// accumulator downstream, not the render pacing.
 			elapsedRealUs = std::chrono::microseconds(STAGE_FRAME_CLAMP_US);
+		}
+
+		if (frameDuration.unlimited)
+		{
+			// No render pacing target while uncapped; keep the pacer's reference clock
+			// anchored to "now" so switching back to a capped rate later doesn't inherit a
+			// stale expected_frame_time and believe itself instantly behind.
+			expected_frame_time = frame_time_now;
+		}
+		else if (stalled)
+		{
 			expected_frame_time = frame_time_now + target_frame_duration;
 		}
 		else
@@ -357,7 +382,7 @@ void Framework::run(sp<Stage> initialStage)
 		}
 		frame++;
 
-		if (!frame_time_limited_warning_shown &&
+		if (!frameDuration.unlimited && !frame_time_limited_warning_shown &&
 		    frame_time_now > expected_frame_time + 5 * target_frame_duration)
 		{
 			frame_time_limited_warning_shown = true;
