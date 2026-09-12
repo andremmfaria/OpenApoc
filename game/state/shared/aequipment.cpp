@@ -431,7 +431,7 @@ void AEquipment::updateInner(GameState &state, unsigned int ticks)
 			recharge_ticks_accumulated += ticks;
 			if (recharge_ticks_accumulated > TICKS_PER_RECHARGE)
 			{
-				recharge_ticks_accumulated = 0;
+				recharge_ticks_accumulated -= TICKS_PER_RECHARGE;
 				ammo += payload->recharge;
 				ammo = std::min(payload->max_ammo, ammo);
 			}
