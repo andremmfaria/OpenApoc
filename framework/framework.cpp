@@ -311,8 +311,14 @@ void Framework::run(sp<Stage> initialStage)
 	size_t frame = 0;
 	LogInfo("Program loop started");
 
-	auto target_frame_duration =
-	    std::chrono::duration<int64_t, std::micro>(1000000 / Options::targetFPS.get());
+	int targetFPS = Options::targetFPS.get();
+	if (targetFPS <= 0)
+	{
+		LogWarning("Options.Framework.TargetFPS was {0}, must be > 0 - falling back to 60",
+		           targetFPS);
+		targetFPS = 60;
+	}
+	auto target_frame_duration = std::chrono::duration<int64_t, std::micro>(1000000 / targetFPS);
 
 	p->ProgramStages.push(initialStage);
 
@@ -334,7 +340,21 @@ void Framework::run(sp<Stage> initialStage)
 			std::this_thread::sleep_for(time_to_sleep);
 			continue;
 		}
-		expected_frame_time += target_frame_duration;
+		auto elapsedRealUs =
+		    std::chrono::duration_cast<std::chrono::microseconds>(frame_time_now - last_frame_time);
+		last_frame_time = frame_time_now;
+		if (elapsedRealUs.count() > static_cast<int64_t>(STAGE_FRAME_CLAMP_US))
+		{
+			// A stall (load screen, alt-tab, a debugger break) - resync the pacer to now
+			// instead of scheduling a burst of catch-up iterations to make up the gap, and
+			// clamp what the stage sees this frame (see STAGE_FRAME_CLAMP_US).
+			elapsedRealUs = std::chrono::microseconds(STAGE_FRAME_CLAMP_US);
+			expected_frame_time = frame_time_now + target_frame_duration;
+		}
+		else
+		{
+			expected_frame_time += target_frame_duration;
+		}
 		frame++;
 
 		if (!frame_time_limited_warning_shown &&
@@ -351,10 +371,7 @@ void Framework::run(sp<Stage> initialStage)
 			break;
 		}
 		{
-			auto elapsedReal = frame_time_now - last_frame_time;
-			last_frame_time = frame_time_now;
-			StageFrame stageFrame{static_cast<uint64_t>(
-			    std::chrono::duration_cast<std::chrono::microseconds>(elapsedReal).count())};
+			StageFrame stageFrame{static_cast<uint64_t>(elapsedRealUs.count())};
 			p->ProgramStages.current()->update(stageFrame);
 		}
 
