@@ -763,7 +763,7 @@ class BattleUnit : public StateObject<BattleUnit>, public std::enable_shared_fro
 	// Updates unit that is idle
 	void updateIdling(GameState &state);
 	// Update crying
-	void updateCrying(GameState &state);
+	void updateCrying(GameState &state, unsigned int ticks);
 	// Checks if unit should begin falling
 	void updateCheckBeginFalling(GameState &state);
 	// Updates unit's body transition and acquires new target body state
