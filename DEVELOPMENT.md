@@ -50,6 +50,12 @@ On Linux and macOS, run the game from the repository root unless you have instal
 ./build/bin/OpenApoc
 ```
 
+## Packaging
+
+The root `packaging/` directory contains platform-specific packaging resources. Windows NSIS installer resources live under `packaging/windows/`. Linux portable package files live under `packaging/linux/`. macOS packaging should be added under `packaging/macos/` only when the repo has actual bundle, DMG, signing, notarization, or package resources for that platform.
+
+This is separate from CMake's install target. Packaging files describe how to assemble distributable artifacts, while CMake install rules describe where built targets and runtime data are installed.
+
 ## Tests
 
 Build tests with `ENABLE_TESTS=ON` and run them with CTest:

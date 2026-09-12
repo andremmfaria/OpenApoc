@@ -1,0 +1,90 @@
+name: Windows
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+  OPENAPOC_VCPKG_ROOT: C:/vcpkg
+  VCPKG_DEFAULT_TRIPLET: x64-windows
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Cache vcpkg
+      uses: actions/cache@v4
+      with:
+        path: |
+          C:/Users/runneradmin/AppData/Local/vcpkg/archives
+          ${{ runner.workspace }}/build/vcpkg_installed
+        key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
+        restore-keys: |
+          vcpkg-windows-
+
+    - name: Install Windows tools
+      run: python .github/scripts/package.py windows-tools
+
+    - name: Prepare vcpkg
+      run: >
+        python .github/scripts/package.py windows-vcpkg
+        --root "${{ env.OPENAPOC_VCPKG_ROOT }}"
+        --workspace "${{ github.workspace }}"
+        --install-root "${{ runner.workspace }}/build/vcpkg_installed"
+
+    - name: Create build environment
+      run: python .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
+
+    - name: Download minimal cd image
+      run: python .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
+
+    - name: Configure CMake
+      run: >
+        python .github/scripts/cmake.py configure
+        --source ${{ github.workspace }}
+        --build-dir ${{ runner.workspace }}/build
+        --build-type ${{ env.BUILD_TYPE }}
+        --option=-DMSVC_PDB=ON
+        --option=-DUSE_PCH=ON
+        "--option=-DVCPKG_INSTALLED_DIR=${{ runner.workspace }}/build/vcpkg_installed"
+        "--option=-DCMAKE_TOOLCHAIN_FILE=${{ env.OPENAPOC_VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
+
+    - name: Build
+      run: python .github/scripts/cmake.py build --build-dir ${{ runner.workspace }}/build --config ${{ env.BUILD_TYPE }}
+
+    - name: Test
+      run: python .github/scripts/cmake.py test --build-dir ${{ runner.workspace }}/build --config ${{ env.BUILD_TYPE }}
+
+    - name: Package
+      run: >
+        python .github/scripts/package.py windows
+        --workspace "${{ github.workspace }}"
+        --build-dir "${{ runner.workspace }}/build"
+        --dist-dir "${{ github.workspace }}/dist"
+        --vcpkg-root "${{ env.OPENAPOC_VCPKG_ROOT }}"
+        --nsis "C:/Program Files (x86)/NSIS/makensis.exe"
+
+    - name: Upload Windows packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: openapoc-windows
+        path: dist/*
+
+    - name: Upload failure logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-logs
+        if-no-files-found: warn
+        path: |
+          ${{ runner.workspace }}/build/Testing/Temporary/LastTest.log
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeOutput.log
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeError.log
