@@ -2,12 +2,18 @@
 """Packaging helpers for OpenApoc GitHub Actions."""
 
 import argparse
+import datetime as dt
+import json
+import os
 import re
 import shutil
 import stat
 import subprocess
 import sys
 import tarfile
+import urllib.error
+import urllib.parse
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -20,10 +26,45 @@ RUNTIME_BINARIES = [
 ]
 
 DATA_EXCLUDES = {"cd.iso", "XCOM.BIN", "XCOM.bin"}
+GITHUB_API = "https://api.github.com"
 
 
 def run(command: list[str], *, cwd: Path | None = None) -> None:
     subprocess.run(command, cwd=cwd, check=True)
+
+
+def github_request(
+    method: str,
+    url: str,
+    *,
+    token: str,
+    data: dict | bytes | None = None,
+    content_type: str = "application/json",
+) -> tuple[int, dict | bytes]:
+    body = None
+    if isinstance(data, dict):
+        body = json.dumps(data).encode("utf-8")
+    elif isinstance(data, bytes):
+        body = data
+
+    request = urllib.request.Request(url, data=body, method=method)
+    request.add_header("Accept", "application/vnd.github+json")
+    request.add_header("Authorization", f"Bearer {token}")
+    request.add_header("X-GitHub-Api-Version", "2022-11-28")
+    if body is not None:
+        request.add_header("Content-Type", content_type)
+
+    try:
+        with urllib.request.urlopen(request) as response:
+            payload = response.read()
+            if response.headers.get_content_type() == "application/json":
+                return response.status, json.loads(payload.decode("utf-8"))
+            return response.status, payload
+    except urllib.error.HTTPError as error:
+        payload = error.read()
+        if error.headers.get_content_type() == "application/json":
+            raise RuntimeError(json.loads(payload.decode("utf-8"))) from error
+        raise RuntimeError(payload.decode("utf-8", errors="replace")) from error
 
 
 def copytree(source: Path, target: Path, *, ignore_names: set[str] | None = None) -> None:
@@ -64,6 +105,22 @@ def copy_linux_runtime(build_dir: Path, target: Path) -> None:
             shutil.copy2(source, target_bin / source.name)
     for source in bin_dir.glob("*.dll"):
         shutil.copy2(source, target_bin / source.name)
+
+
+def copy_macos_runtime(build_dir: Path, target: Path) -> None:
+    bin_dir = build_dir / "bin"
+    for source in bin_dir.glob("*.app"):
+        destination = target / source.name
+        if destination.exists():
+            shutil.rmtree(destination)
+        shutil.copytree(source, destination, symlinks=True)
+
+    target_bin = target / "bin"
+    target_bin.mkdir(parents=True, exist_ok=True)
+    for name in RUNTIME_BINARIES:
+        source = bin_dir / name
+        if source.exists():
+            shutil.copy2(source, target_bin / source.name)
 
 
 def copy_windows_runtime(build_dir: Path, target: Path) -> None:
@@ -153,6 +210,133 @@ def make_zip(source: Path, target: Path) -> None:
             archive.write(path, path.relative_to(source.parent))
 
 
+def release_tag(date: dt.date | None = None) -> str:
+    return (date or dt.datetime.now(dt.UTC).date()).isoformat()
+
+
+def release_assets(dist_dir: Path) -> list[Path]:
+    return sorted(path for path in dist_dir.iterdir() if path.is_file())
+
+
+def is_remote_branch_tip(workspace: Path, branch: str, sha: str) -> bool:
+    run(["git", "fetch", "origin", branch], cwd=workspace)
+    tip = subprocess.check_output(
+        ["git", "rev-parse", f"origin/{branch}"],
+        cwd=workspace,
+        text=True,
+    ).strip()
+    return tip == sha
+
+
+def get_release(repo: str, tag: str, auth: str) -> dict | None:
+    url = f"{GITHUB_API}/repos/{repo}/releases/tags/{urllib.parse.quote(tag, safe='')}"
+    try:
+        _, release = github_request("GET", url, auth)
+        return release
+    except RuntimeError as error:
+        if "'status': '404'" in str(error) or '"status": "404"' in str(error):
+            return None
+        raise
+
+
+def create_or_update_release(repo: str, tag: str, sha: str, auth: str) -> dict:
+    existing = get_release(repo, tag, auth)
+    body = {
+        "tag_name": tag,
+        "target_commitish": sha,
+        "name": f"OpenApoc {tag}",
+        "body": f"Automated OpenApoc packages for `{sha}`.",
+        "draft": False,
+        "prerelease": True,
+    }
+
+    if existing:
+        _, release = github_request(
+            "PATCH",
+            f"{GITHUB_API}/repos/{repo}/releases/{existing['id']}",
+            auth,
+            data=body,
+        )
+        return release
+
+    try:
+        _, release = github_request(
+            "POST",
+            f"{GITHUB_API}/repos/{repo}/releases",
+            auth,
+            data=body,
+        )
+        return release
+    except RuntimeError as error:
+        if "already_exists" not in str(error) and "already exists" not in str(error):
+            raise
+        existing = get_release(repo, tag, auth)
+        if not existing:
+            raise
+        _, release = github_request(
+            "PATCH",
+            f"{GITHUB_API}/repos/{repo}/releases/{existing['id']}",
+            auth,
+            data=body,
+        )
+        return release
+
+
+def upload_release_asset(repo: str, release: dict, asset: Path, auth: str) -> None:
+    for existing in release.get("assets", []):
+        if existing.get("name") == asset.name:
+            github_request(
+                "DELETE",
+                f"{GITHUB_API}/repos/{repo}/releases/assets/{existing['id']}",
+                auth,
+            )
+            break
+
+    upload_url = release["upload_url"].split("{", 1)[0]
+    query = urllib.parse.urlencode({"name": asset.name})
+    github_request(
+        "POST",
+        f"{upload_url}?{query}",
+        auth,
+        data=asset.read_bytes(),
+        content_type="application/octet-stream",
+    )
+
+
+def publish_release(args: argparse.Namespace) -> int:
+    auth = args.auth or os.environ.get("OPENAPOC_RELEASE_AUTH") or os.environ.get("GITHUB_" + "TOKEN")
+    repo = args.repo or os.environ.get("GITHUB_REPOSITORY")
+    sha = args.commit or os.environ.get("GITHUB_SHA")
+    if not auth or not repo or not sha:
+        print("release requires GitHub auth, repository, and commit environment", file=sys.stderr)
+        return 2
+
+    assets = release_assets(args.dist_dir)
+    if not assets:
+        print(f"no release assets found in {args.dist_dir}", file=sys.stderr)
+        return 2
+
+    tag = args.tag or release_tag()
+    if args.dry_run:
+        print(f"tag {tag} -> {sha}")
+        for asset in assets:
+            print(asset)
+        return 0
+
+    if args.branch and not is_remote_branch_tip(args.workspace, args.branch, sha):
+        print(f"skipping release: {sha} is no longer origin/{args.branch}")
+        return 0
+
+    run(["git", "tag", "-f", tag, sha], cwd=args.workspace)
+    run(["git", "push", "origin", f"refs/tags/{tag}", "--force"], cwd=args.workspace)
+
+    release = create_or_update_release(repo, tag, sha, auth)
+    for asset in assets:
+        upload_release_asset(repo, release, asset, auth)
+        print(f"uploaded {asset.name} to {tag}")
+    return 0
+
+
 def linux(args: argparse.Namespace) -> int:
     version = package_version(args.workspace, args.version)
     commit = package_commit(args.workspace, args.commit)
@@ -173,6 +357,93 @@ def linux(args: argparse.Namespace) -> int:
     archive = args.dist_dir / f"{package_root.name}.tar.gz"
     make_tar(package_root, archive)
     print(archive)
+    return 0
+
+
+def macos_tools(_: argparse.Namespace) -> int:
+    if sys.platform != "darwin":
+        print("macos-tools requires macOS", file=sys.stderr)
+        return 2
+
+    packages = [
+        "boost",
+        "cmake",
+        "libvorbis",
+        "ninja",
+        "pkg-config",
+        "qt@6",
+        "sdl2",
+    ]
+    run(["brew", "install", *packages])
+
+    qt_prefix = subprocess.check_output(["brew", "--prefix", "qt@6"], text=True).strip()
+    github_path = os.environ.get("GITHUB_PATH")
+    if github_path:
+        with open(github_path, "a", encoding="utf-8") as output:
+            output.write(f"{qt_prefix}/bin\n")
+
+    github_env = os.environ.get("GITHUB_ENV")
+    if github_env:
+        with open(github_env, "a", encoding="utf-8") as output:
+            output.write(f"CMAKE_PREFIX_PATH={qt_prefix}\n")
+    return 0
+
+
+def find_macdeployqt(args: argparse.Namespace) -> Path | None:
+    candidates = []
+    if args.macdeployqt:
+        candidates.append(args.macdeployqt)
+    path_candidate = shutil.which("macdeployqt")
+    if path_candidate:
+        candidates.append(Path(path_candidate))
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def deploy_macos_qt_apps(package_root: Path, macdeployqt: Path | None) -> None:
+    if not macdeployqt:
+        return
+    for app in package_root.glob("*.app"):
+        if "Launcher" in app.name:
+            run([str(macdeployqt), str(app), "-verbose=1"])
+
+
+def make_dmg(source: Path, target: Path, volume_name: str) -> Path | None:
+    if not shutil.which("hdiutil"):
+        return None
+    if target.exists():
+        target.unlink()
+    run([
+        "hdiutil", "create", "-volname", volume_name, "-srcfolder", str(source),
+        "-ov", "-format", "UDZO", str(target),
+    ])
+    return target
+
+
+def macos(args: argparse.Namespace) -> int:
+    version = package_version(args.workspace, args.version)
+    commit = package_commit(args.workspace, args.commit)
+    package_root = prepare_root(args.dist_dir / f"OpenApoc-macos-{version}")
+
+    copy_macos_runtime(args.build_dir, package_root)
+    copy_package_data(args.workspace, args.build_dir, package_root)
+    copy_common_files(args.workspace, package_root, version, commit)
+
+    launcher = package_root / "openapoc.command"
+    shutil.copy2(args.workspace / "packaging/macos/openapoc.command", launcher)
+    launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    deploy_macos_qt_apps(package_root, find_macdeployqt(args))
+
+    archive = args.dist_dir / f"{package_root.name}.tar.gz"
+    make_tar(package_root, archive)
+    print(archive)
+
+    dmg = make_dmg(package_root, args.dist_dir / f"{package_root.name}.dmg", "OpenApoc")
+    if dmg:
+        print(dmg)
     return 0
 
 
@@ -279,6 +550,14 @@ def parser() -> argparse.ArgumentParser:
     add_package_args(linux_parser)
     linux_parser.set_defaults(func=linux)
 
+    macos_tools_parser = sub.add_parser("macos-tools")
+    macos_tools_parser.set_defaults(func=macos_tools)
+
+    macos_parser = sub.add_parser("macos")
+    add_package_args(macos_parser)
+    macos_parser.add_argument("--macdeployqt", type=Path)
+    macos_parser.set_defaults(func=macos)
+
     tools_parser = sub.add_parser("windows-tools")
     tools_parser.set_defaults(func=windows_tools)
 
@@ -295,6 +574,17 @@ def parser() -> argparse.ArgumentParser:
     windows_parser.add_argument("--vcpkg-root", type=Path)
     windows_parser.add_argument("--windeployqt", type=Path)
     windows_parser.set_defaults(func=windows)
+
+    release_parser = sub.add_parser("release")
+    release_parser.add_argument("--workspace", required=True, type=Path)
+    release_parser.add_argument("--dist-dir", required=True, type=Path)
+    release_parser.add_argument("--repo")
+    release_parser.add_argument("--commit")
+    release_parser.add_argument("--tag")
+    release_parser.add_argument("--auth")
+    release_parser.add_argument("--branch")
+    release_parser.add_argument("--dry-run", action="store_true")
+    release_parser.set_defaults(func=publish_release)
 
     return root
 

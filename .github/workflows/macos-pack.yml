@@ -1,18 +1,25 @@
-name: Linux
+name: macOS
 
 on: [push, pull_request]
 
 permissions:
   contents: write
 
+env:
+  BUILD_TYPE: Release
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+
 jobs:
-  linux:
-    runs-on: ubuntu-24.04
+  macos:
+    runs-on: macos-15
 
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
+
+    - name: Install dependencies
+      run: python3 .github/scripts/package.py macos-tools
 
     - name: Create build environment
       run: python3 .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
@@ -20,37 +27,37 @@ jobs:
     - name: Download minimal cd image
       run: python3 .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
 
-    - name: Install dependencies
-      run: python3 .github/scripts/cmake.py install --profile build --extra-package gcc --extra-package g++
-
     - name: Configure CMake
       run: >
         python3 .github/scripts/cmake.py configure
         --source ${{ github.workspace }}
         --build-dir ${{ runner.workspace }}/build
-        --build-type Release
-        --cc gcc
-        --cxx g++
+        --build-type ${{ env.BUILD_TYPE }}
+        --cc clang
+        --cxx clang++
+        --option=-DUSE_SYSTEM_QT=ON
         --option=-DUSE_PCH=ON
 
     - name: Build
-      run: python3 .github/scripts/cmake.py build --build-dir ${{ runner.workspace }}/build --config Release
+      run: python3 .github/scripts/cmake.py build --build-dir ${{ runner.workspace }}/build --config ${{ env.BUILD_TYPE }}
 
     - name: Test
-      run: python3 .github/scripts/cmake.py test --build-dir ${{ runner.workspace }}/build --config Release
+      run: python3 .github/scripts/cmake.py test --build-dir ${{ runner.workspace }}/build --config ${{ env.BUILD_TYPE }}
 
     - name: Package
       run: >
-        python3 .github/scripts/package.py linux
-        --workspace "${{ github.workspace }}"
-        --build-dir "${{ runner.workspace }}/build"
-        --dist-dir "${{ github.workspace }}/dist"
+        python3 .github/scripts/package.py macos
+        --workspace ${{ github.workspace }}
+        --build-dir ${{ runner.workspace }}/build
+        --dist-dir ${{ github.workspace }}/dist
 
-    - name: Upload Linux package
+    - name: Upload macOS package
       uses: actions/upload-artifact@v4
       with:
-        name: openapoc-linux
-        path: dist/*.tar.gz
+        name: openapoc-macos
+        path: |
+          dist/*.tar.gz
+          dist/*.dmg
 
     - name: Publish release assets
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -66,7 +73,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: package-linux-logs
+        name: macos-logs
         if-no-files-found: warn
         path: |
           ${{ runner.workspace }}/build/Testing/Temporary/LastTest.log
