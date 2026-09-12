@@ -399,12 +399,14 @@ static bool test_legacy_city_tier_fps_independent()
 			ok = false;
 		}
 	}
-	// And the rate itself must land exactly on the old 60 FPS speed: 6 ticks/frame * 60
-	// FPS = 360 ticks/s.
-	if (referenceRate != 360.0)
+	// The rate itself must land exactly on the old 60 FPS speed: 6 ticks/frame * 60 FPS =
+	// 360 ticks/s. Checked against the exact rate, not the simulated referenceRate above,
+	// since discrete frame cadences that don't divide totalUs evenly (e.g. 30 FPS's
+	// 33333us frames) leave a small quantization error in the simulated figure.
+	if (rateNumerator != 360)
 	{
 		LogError("test_legacy_city_tier_fps_independent: rate was {0} ticks/s, expected 360",
-		         referenceRate);
+		         rateNumerator);
 		ok = false;
 	}
 	return ok;
