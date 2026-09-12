@@ -260,7 +260,7 @@ void CheatOptions::eventOccurred(Event *e)
 	}
 }
 
-void CheatOptions::update() { menuform->update(); }
+void CheatOptions::update(const StageFrame &frame) { menuform->update(); }
 
 void CheatOptions::render()
 {

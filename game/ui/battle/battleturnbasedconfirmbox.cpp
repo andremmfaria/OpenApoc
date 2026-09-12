@@ -54,7 +54,7 @@ void BattleTurnBasedConfirmBox::eventOccurred(Event *e)
 	}
 }
 
-void BattleTurnBasedConfirmBox::update() { form->update(); }
+void BattleTurnBasedConfirmBox::update(const StageFrame &frame) { form->update(); }
 
 void BattleTurnBasedConfirmBox::render()
 {

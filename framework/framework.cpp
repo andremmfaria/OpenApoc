@@ -318,6 +318,7 @@ void Framework::run(sp<Stage> initialStage)
 
 	this->renderer->setPalette(this->data->loadPalette("xcom3/ufodata/pal_06.dat"));
 	auto expected_frame_time = std::chrono::steady_clock::now();
+	auto last_frame_time = expected_frame_time;
 
 	bool frame_time_limited_warning_shown = false;
 
@@ -350,7 +351,11 @@ void Framework::run(sp<Stage> initialStage)
 			break;
 		}
 		{
-			p->ProgramStages.current()->update();
+			auto elapsedReal = frame_time_now - last_frame_time;
+			last_frame_time = frame_time_now;
+			StageFrame stageFrame{static_cast<uint64_t>(
+			    std::chrono::duration_cast<std::chrono::microseconds>(elapsedReal).count())};
+			p->ProgramStages.current()->update(stageFrame);
 		}
 
 		for (StageCmd cmd : stageCommands)

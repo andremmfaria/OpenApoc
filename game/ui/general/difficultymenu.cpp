@@ -94,7 +94,7 @@ void DifficultyMenu::eventOccurred(Event *e)
 	}
 }
 
-void DifficultyMenu::update() { difficultymenuform->update(); }
+void DifficultyMenu::update(const StageFrame &frame) { difficultymenuform->update(); }
 
 void DifficultyMenu::render() { difficultymenuform->render(); }
 

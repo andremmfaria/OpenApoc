@@ -102,7 +102,7 @@ void NotificationScreen::eventOccurred(Event *e)
 	}
 }
 
-void NotificationScreen::update() { menuform->update(); }
+void NotificationScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void NotificationScreen::render()
 {

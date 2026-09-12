@@ -92,7 +92,7 @@ void MainMenu::eventOccurred(Event *e)
 	}
 }
 
-void MainMenu::update() { mainmenuform->update(); }
+void MainMenu::update(const StageFrame &frame) { mainmenuform->update(); }
 
 void MainMenu::render() { mainmenuform->render(); }
 

@@ -57,7 +57,7 @@ void ImagePreview::eventOccurred(Event *e)
 	}
 }
 
-void ImagePreview::update() { menuform->update(); }
+void ImagePreview::update(const StageFrame &frame) { menuform->update(); }
 
 void ImagePreview::render() { menuform->render(); }
 

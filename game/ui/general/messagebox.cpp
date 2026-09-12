@@ -201,7 +201,7 @@ void MessageBox::eventOccurred(Event *e)
 	}
 }
 
-void MessageBox::update() { form->update(); }
+void MessageBox::update(const StageFrame &frame) { form->update(); }
 
 void MessageBox::render()
 {

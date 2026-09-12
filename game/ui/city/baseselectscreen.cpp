@@ -106,10 +106,10 @@ void BaseSelectScreen::eventOccurred(Event *e)
 	}
 }
 
-void BaseSelectScreen::update()
+void BaseSelectScreen::update(const StageFrame &frame)
 {
 	menuform->update();
-	CityTileView::update();
+	CityTileView::update(frame);
 }
 
 void BaseSelectScreen::render()

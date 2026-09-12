@@ -1589,9 +1589,9 @@ void BattleTileView::render()
 	}
 }
 
-void BattleTileView::update()
+void BattleTileView::update(const StageFrame &frame)
 {
-	TileView::update();
+	TileView::update(frame);
 
 	// Pulsate palette colors
 	colorCurrent += (colorForward ? 1 : -1);

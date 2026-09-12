@@ -1009,9 +1009,9 @@ void CityTileView::render()
 	}
 }
 
-void CityTileView::update()
+void CityTileView::update(const StageFrame &frame)
 {
-	TileView::update();
+	TileView::update(frame);
 	counter = (counter + 1) % COUNTER_MAX;
 
 	// Pulsate palette colors

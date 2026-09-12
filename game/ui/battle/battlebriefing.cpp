@@ -179,7 +179,7 @@ void BattleBriefing::eventOccurred(Event *e)
 	}
 }
 
-void BattleBriefing::update()
+void BattleBriefing::update(const StageFrame &frame)
 {
 	menuform->update();
 

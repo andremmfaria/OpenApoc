@@ -756,7 +756,7 @@ void Skirmish::eventOccurred(Event *e)
 	}
 }
 
-void Skirmish::update() { menuform->update(); }
+void Skirmish::update(const StageFrame &frame) { menuform->update(); }
 
 void Skirmish::render()
 {

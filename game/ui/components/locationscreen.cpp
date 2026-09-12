@@ -128,7 +128,7 @@ void LocationScreen::eventOccurred(Event *e)
 	}
 }
 
-void LocationScreen::update() { menuform->update(); }
+void LocationScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void LocationScreen::render()
 {

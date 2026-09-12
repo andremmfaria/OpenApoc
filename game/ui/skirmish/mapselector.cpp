@@ -174,7 +174,7 @@ void MapSelector::eventOccurred(Event *e)
 	}
 }
 
-void MapSelector::update() { menuform->update(); }
+void MapSelector::update(const StageFrame &frame) { menuform->update(); }
 
 void MapSelector::render()
 {

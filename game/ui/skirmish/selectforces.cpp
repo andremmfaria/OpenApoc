@@ -435,7 +435,7 @@ void SelectForces::eventOccurred(Event *e)
 	}
 }
 
-void SelectForces::update() { menuform->update(); }
+void SelectForces::update(const StageFrame &frame) { menuform->update(); }
 
 void SelectForces::render()
 {

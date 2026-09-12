@@ -502,7 +502,7 @@ void BaseScreen::eventOccurred(Event *e)
 	}
 }
 
-void BaseScreen::update() { form->update(); }
+void BaseScreen::update(const StageFrame &frame) { form->update(); }
 
 void BaseScreen::render()
 {

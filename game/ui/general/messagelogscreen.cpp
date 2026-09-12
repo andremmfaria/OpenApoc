@@ -25,7 +25,7 @@ MessageLogScreen::MessageLogScreen(sp<GameState> state, CityView &cityView)
 	{
 		listbox->addItem(createMessageRow(message, state, cityView));
 	}
-	this->update();
+	this->update({0});
 	listbox->scroller->scrollMax();
 }
 
@@ -37,7 +37,7 @@ MessageLogScreen::MessageLogScreen(sp<GameState> state, BattleView &battleView)
 	{
 		listbox->addItem(createMessageRow(message, state, battleView));
 	}
-	this->update();
+	this->update({0});
 	listbox->scroller->scrollMax();
 }
 
@@ -141,7 +141,7 @@ void MessageLogScreen::eventOccurred(Event *e)
 	}
 }
 
-void MessageLogScreen::update() { menuform->update(); }
+void MessageLogScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void MessageLogScreen::render()
 {

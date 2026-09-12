@@ -450,7 +450,7 @@ void SaveMenu::eventOccurred(Event *e)
 	}
 }
 
-void SaveMenu::update() { menuform->update(); }
+void SaveMenu::update(const StageFrame &frame) { menuform->update(); }
 
 void SaveMenu::render()
 {

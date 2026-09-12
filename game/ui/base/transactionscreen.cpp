@@ -735,7 +735,7 @@ void TransactionScreen::eventOccurred(Event *e)
 	}
 }
 
-void TransactionScreen::update()
+void TransactionScreen::update(const StageFrame &frame)
 {
 	form->update();
 	if (framesUntilHighlightUpdate > 0)

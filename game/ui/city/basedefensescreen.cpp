@@ -94,7 +94,7 @@ void BaseDefenseScreen::eventOccurred(Event *e)
 	}
 }
 
-void BaseDefenseScreen::update() { menuform->update(); }
+void BaseDefenseScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void BaseDefenseScreen::render()
 {

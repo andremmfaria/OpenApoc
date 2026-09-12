@@ -317,7 +317,7 @@ void InGameOptions::eventOccurred(Event *e)
 	}
 }
 
-void InGameOptions::update() { menuform->update(); }
+void InGameOptions::update(const StageFrame &frame) { menuform->update(); }
 
 void InGameOptions::render()
 {

@@ -722,7 +722,7 @@ void RecruitScreen::eventOccurred(Event *e)
 	}
 }
 
-void RecruitScreen::update() { form->update(); }
+void RecruitScreen::update(const StageFrame &frame) { form->update(); }
 
 void RecruitScreen::render()
 {

@@ -66,7 +66,7 @@ void UfopaediaView::eventOccurred(Event *e)
 	}
 }
 
-void UfopaediaView::update() { menuform->update(); }
+void UfopaediaView::update(const StageFrame &frame) { menuform->update(); }
 
 void UfopaediaView::render()
 {

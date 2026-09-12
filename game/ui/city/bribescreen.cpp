@@ -146,7 +146,7 @@ void BribeScreen::eventOccurred(Event *e)
 	}
 }
 
-void BribeScreen::update() { menuform->update(); }
+void BribeScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void BribeScreen::render()
 {

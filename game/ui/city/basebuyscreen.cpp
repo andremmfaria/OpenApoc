@@ -163,7 +163,7 @@ void BaseBuyScreen::eventOccurred(Event *e)
 	}
 }
 
-void BaseBuyScreen::update() { form->update(); }
+void BaseBuyScreen::update(const StageFrame &frame) { form->update(); }
 
 void BaseBuyScreen::render()
 {

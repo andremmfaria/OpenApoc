@@ -236,7 +236,7 @@ void BattlePreStart::eventOccurred(Event *e)
 	}
 }
 
-void BattlePreStart::update() { menuform->update(); }
+void BattlePreStart::update(const StageFrame &frame) { menuform->update(); }
 
 void BattlePreStart::render()
 {
