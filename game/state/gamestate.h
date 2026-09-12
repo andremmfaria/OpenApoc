@@ -234,8 +234,7 @@ class GameState : public std::enable_shared_from_this<GameState>
 
 	void invasion();
 
-	// Returns true if we can go at max speed (IE push all update loops to 5 minute intervals -
-	// causes insta-completion of all routes etc.
+	// Returns true if we can go at turbo speed (see CityView's Speed5 tier).
 	// Cannot be done if:
 	// - there are any enemy units on the current map
 	// - there are any projectiles on the current map
@@ -245,13 +244,6 @@ class GameState : public std::enable_shared_from_this<GameState>
 	void cleanUpDeathNote();
 	// Update progress
 	void update(unsigned int ticks);
-	// updateTurbo progresses 5 minutes at a time - can only be called if canTurbo() returns true.
-	// canTurbo() must be re-tested after each call to see if we should drop down to normal speed
-	// (e.g. enemy appeared, other user action required)
-	void updateTurbo();
-	// this moves non-aggressive vehicles around for some more ticks so that when time is paused
-	// after turbo city appears more alive
-	void updateAfterTurbo();
 
 	void updateBeforeBattle();
 	void updateAfterBattle();

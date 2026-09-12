@@ -1715,39 +1715,6 @@ int GameState::calculateFundingModifier() const
 	return fundingModifier;
 }
 
-void GameState::updateTurbo()
-{
-	if (!this->canTurbo())
-	{
-		LogError("Called when canTurbo() is false");
-	}
-	unsigned ticksToUpdate = TURBO_TICKS;
-	// Turbo always re-aligns to TURBO_TICKS (5 minutes)
-	unsigned int align = this->gameTime.getTicks() % TURBO_TICKS;
-	if (align != 0)
-	{
-		ticksToUpdate -= align;
-	}
-	this->update(ticksToUpdate);
-	this->updateAfterTurbo();
-}
-
-void GameState::updateAfterTurbo()
-{
-	for (auto &v : this->vehicles)
-	{
-		if (v.second->city != current_city)
-		{
-			continue;
-		}
-		if (v.second->type->aggressiveness > 0)
-		{
-			continue;
-		}
-		v.second->update(*this, randBoundsExclusive(rng, (unsigned)0, 20 * TICKS_PER_SECOND));
-	}
-}
-
 void GameState::updateBeforeBattle()
 {
 	// Save time to roll back to
