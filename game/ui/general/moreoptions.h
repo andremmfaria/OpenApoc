@@ -32,20 +32,21 @@ class MoreOptions : public Stage
 	                                                  const int &labelLocationHeight);
 
 	void addChildLabelToControl(const sp<Control> &control, const UString &optionSection,
-	                            const UString &optionName, const sp<ListBox> &listControl,
+	                            const UString &optionName, int itemSize,
 	                            const int &labelLocationHeight);
 
 	void addFocusControlCallbackToNumberTextEdit(const std::list<sp<TextEdit>> &textEditList);
 
 	sp<TextEdit> createTextEditForNumericOptions(const UString &optionSection,
-	                                             const UString &optionName,
-	                                             const sp<ListBox> &listControl,
+	                                             const UString &optionName, int itemSize,
 	                                             const UString &labelText) const;
 
 	void
-	addButtonsToNumericOption(const sp<Control> &control, const sp<ListBox> &listControl,
+	addButtonsToNumericOption(const sp<Control> &control, int itemSize,
 	                          const std::function<void(FormsEvent *e)> &buttonUpClickCallback,
 	                          const std::function<void(FormsEvent *e)> &buttonDownClickCallback);
+
+	void setupFrameRateOption();
 
   public:
 	MoreOptions(sp<GameState> state);
