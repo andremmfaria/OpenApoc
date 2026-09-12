@@ -11,6 +11,7 @@
 #include "framework/palette.h"
 #include "framework/renderer.h"
 #include "framework/sound.h"
+#include "framework/uicadence.h"
 #include "game/state/battle/ai/aitype.h"
 #include "game/state/battle/battle.h"
 #include "game/state/battle/battlehazard.h"
@@ -32,9 +33,14 @@
 
 namespace OpenApoc
 {
+
+// Real-time refresh cadence (StageFrame::elapsedRealUs) for the hidden-unit TU bar while
+// hideDisplay is active - "10 frames at the original 60 FPS baseline".
+static const uint64_t HIDDEN_BAR_REFRESH_DELAY_US = US_PER_SECOND * 10 / 60;
+
 void BattleTileView::updateHiddenBar()
 {
-	hiddenBarTicksAccumulated = 0;
+	hiddenBarElapsedUs = 0;
 
 	int width = 321;
 	int height = 33;
@@ -420,11 +426,9 @@ void BattleTileView::render()
 
 	if (hideDisplay)
 	{
-		hiddenBarTicksAccumulated++;
-		if (hiddenBarTicksAccumulated > 10)
-		{
-			updateHiddenBar();
-		}
+		// The refresh itself (updateHiddenBar()) mutates widget state, so it is driven from
+		// update() rather than here (see BattleTileView::update()). render() only draws the
+		// result.
 		hiddenForm->render();
 		return;
 	}
@@ -432,18 +436,19 @@ void BattleTileView::render()
 	// Rotate Icons
 	{
 		healingIconTicksAccumulated++;
-		healingIconTicksAccumulated %= 2 * HEALING_ICON_ANIMATION_DELAY;
+		healingIconTicksAccumulated %= 2 * HEALING_ICON_ANIMATION_DELAY();
 		lowMoraleIconTicksAccumulated++;
-		lowMoraleIconTicksAccumulated %= 2 * LOWMORALE_ICON_ANIMATION_DELAY;
+		lowMoraleIconTicksAccumulated %= 2 * LOWMORALE_ICON_ANIMATION_DELAY();
 		psiIconTicksAccumulated++;
-		psiIconTicksAccumulated %= 2 * PSI_ICON_ANIMATION_DELAY;
+		psiIconTicksAccumulated %= 2 * PSI_ICON_ANIMATION_DELAY();
 		selectionFrameTicksAccumulated++;
-		selectionFrameTicksAccumulated %= 2 * SELECTION_FRAME_ANIMATION_DELAY;
+		selectionFrameTicksAccumulated %= 2 * SELECTION_FRAME_ANIMATION_DELAY();
 		iconAnimationTicksAccumulated++;
-		iconAnimationTicksAccumulated %= targetLocationIcons.size() * TARGET_ICONS_ANIMATION_DELAY;
+		iconAnimationTicksAccumulated %=
+		    targetLocationIcons.size() * TARGET_ICONS_ANIMATION_DELAY();
 		focusAnimationTicksAccumulated++;
 		focusAnimationTicksAccumulated %=
-		    (2 * FOCUS_ICONS_ANIMATION_FRAMES - 2) * FOCUS_ICONS_ANIMATION_DELAY;
+		    (2 * FOCUS_ICONS_ANIMATION_FRAMES - 2) * FOCUS_ICONS_ANIMATION_DELAY();
 	}
 
 	// screenOffset.x/screenOffset.y is the 'amount added to the tile coords' - so we want
@@ -669,7 +674,7 @@ void BattleTileView::render()
 									    targetIconLocations.end())
 									{
 										r.draw(targetLocationIcons[iconAnimationTicksAccumulated /
-										                           TARGET_ICONS_ANIMATION_DELAY],
+										                           TARGET_ICONS_ANIMATION_DELAY()],
 										       tileToOffsetScreenCoords(Vec3<float>{
 										           x, y, tile->getRestingPosition().z}) -
 										           targetLocationOffset);
@@ -678,7 +683,7 @@ void BattleTileView::render()
 									    waypointLocations.end())
 									{
 										r.draw(waypointImageSource[iconAnimationTicksAccumulated /
-										                           TARGET_ICONS_ANIMATION_DELAY],
+										                           TARGET_ICONS_ANIMATION_DELAY()],
 										       tileToOffsetScreenCoords(Vec3<float>{
 										           x, y, tile->getRestingPosition().z}) -
 										           targetLocationOffset);
@@ -795,7 +800,7 @@ void BattleTileView::render()
 									}
 									case TileObject::Type::Hazard:
 									{
-										if (visible && ticksUntilFireSound == 0)
+										if (visible && fireSoundDelayUs == 0)
 										{
 											auto h =
 											    std::static_pointer_cast<TileObjectBattleHazard>(
@@ -826,7 +831,7 @@ void BattleTileView::render()
 								{
 									r.draw(
 									    psiIcons[PsiStatus::NotEngaged][psiIconTicksAccumulated /
-									                                    PSI_ICON_ANIMATION_DELAY],
+									                                    PSI_ICON_ANIMATION_DELAY()],
 									    unitFaceIconPos);
 									faceShift = 1;
 								}
@@ -834,14 +839,14 @@ void BattleTileView::render()
 								{
 									r.draw(
 									    psiIcons[unitPsiAttackedStatus][psiIconTicksAccumulated /
-									                                    PSI_ICON_ANIMATION_DELAY],
+									                                    PSI_ICON_ANIMATION_DELAY()],
 									    unitFaceIconPos + Vec2<float>{0, faceShift * 16.0f});
 									faceShift = -1;
 								}
 								if (unitLowMorale)
 								{
 									r.draw(lowMoraleIcons[lowMoraleIconTicksAccumulated /
-									                      LOWMORALE_ICON_ANIMATION_DELAY],
+									                      LOWMORALE_ICON_ANIMATION_DELAY()],
 									       unitFaceIconPos + Vec2<float>{0, faceShift * 16.0f});
 								}
 								// Loop ends when "break" is reached above
@@ -1096,7 +1101,7 @@ void BattleTileView::render()
 									{
 										r.draw(psiIcons[PsiStatus::NotEngaged]
 										               [psiIconTicksAccumulated /
-										                PSI_ICON_ANIMATION_DELAY],
+										                PSI_ICON_ANIMATION_DELAY()],
 										       unitFaceIconPos);
 										faceShift = 1;
 									}
@@ -1104,14 +1109,14 @@ void BattleTileView::render()
 									{
 										r.draw(psiIcons[unitPsiAttackedStatus]
 										               [psiIconTicksAccumulated /
-										                PSI_ICON_ANIMATION_DELAY],
+										                PSI_ICON_ANIMATION_DELAY()],
 										       unitFaceIconPos + Vec2<float>{0, faceShift * 16.0f});
 										faceShift = -1;
 									}
 									if (unitLowMorale)
 									{
 										r.draw(lowMoraleIcons[lowMoraleIconTicksAccumulated /
-										                      LOWMORALE_ICON_ANIMATION_DELAY],
+										                      LOWMORALE_ICON_ANIMATION_DELAY()],
 										       unitFaceIconPos + Vec2<float>{0, faceShift * 16.0f});
 									}
 								}
@@ -1172,7 +1177,7 @@ void BattleTileView::render()
 					if (obj.first->isHealing)
 					{
 						r.draw(healingIcons[healingIconTicksAccumulated /
-						                    HEALING_ICON_ANIMATION_DELAY],
+						                    HEALING_ICON_ANIMATION_DELAY()],
 						       pos + offsetHealing);
 					}
 					else
@@ -1227,7 +1232,8 @@ void BattleTileView::render()
 				static const Vec2<float> offsetd14 = {-1.0f, -1.0f};
 				static const Vec2<float> offsetd23 = {1.0f, -1.0f};
 
-				float offset = (float)focusAnimationTicksAccumulated / FOCUS_ICONS_ANIMATION_DELAY;
+				float offset =
+				    (float)focusAnimationTicksAccumulated / FOCUS_ICONS_ANIMATION_DELAY();
 				// Offset goes like this: 0 1 2 3 4 3 2 1  (example for 5 frames)
 				// Therefore, if value is >=frames, we do 2*frames -2 -offset
 				// For example, 2*5 - 2 - 5 = 3, that's how we get 3 that's after 4
@@ -1424,7 +1430,7 @@ void BattleTileView::render()
 									}
 									case TileObject::Type::Hazard:
 									{
-										if (visible && ticksUntilFireSound == 0)
+										if (visible && fireSoundDelayUs == 0)
 										{
 											auto h =
 											    std::static_pointer_cast<TileObjectBattleHazard>(
@@ -1550,7 +1556,8 @@ void BattleTileView::render()
 				           std::get<3>(obj), std::get<4>(obj));
 				// Draw unit selection brackets
 				auto selected = std::get<5>(obj);
-				if (selected && (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY))
+				if (selected &&
+				    (selectionFrameTicksAccumulated / SELECTION_FRAME_ANIMATION_DELAY()))
 				{
 					auto drawn =
 					    selected == 1 ? selectionImageFriendlySmall : selectionImageFriendlyLarge;
@@ -1574,9 +1581,11 @@ void BattleTileView::render()
 
 	if (fireEncountered)
 	{
-		ticksUntilFireSound = 60 * state.battle_common_sample_list->burn->sampleCount /
-		                      state.battle_common_sample_list->burn->format.frequency /
-		                      state.battle_common_sample_list->burn->format.channels;
+		// Sample's own playback duration in real microseconds; the old "* 60" assumed a fixed
+		// 60 FPS to turn that duration into a frame count, which is what made this FPS-coupled.
+		fireSoundDelayUs = US_PER_SECOND * state.battle_common_sample_list->burn->sampleCount /
+		                   state.battle_common_sample_list->burn->format.frequency /
+		                   state.battle_common_sample_list->burn->format.channels;
 		fw().soundBackend->playSample(state.battle_common_sample_list->burn, closestFirePosition);
 	}
 
@@ -1593,21 +1602,36 @@ void BattleTileView::update(const StageFrame &frame)
 {
 	TileView::update(frame);
 
-	// Pulsate palette colors
-	colorCurrent += (colorForward ? 1 : -1);
-	if (colorCurrent <= 0 || colorCurrent >= 15)
+	if (hideDisplay)
 	{
-		colorCurrent = clamp(colorCurrent, 0, 15);
-		colorForward = !colorForward;
+		hiddenBarElapsedUs += frame.elapsedRealUs;
+		if (hiddenBarElapsedUs > HIDDEN_BAR_REFRESH_DELAY_US)
+		{
+			updateHiddenBar();
+		}
 	}
-	pal = modPalette[colorCurrent];
+
+	// Pulsate palette colors, stepping once every PALETTE_PULSE_DELAY() calls rather than
+	// every call so the pulse rate stays anchored to real time (framework/uicadence.h).
+	paletteStepTicksAccumulated++;
+	if (paletteStepTicksAccumulated >= PALETTE_PULSE_DELAY())
+	{
+		paletteStepTicksAccumulated = 0;
+		colorCurrent += (colorForward ? 1 : -1);
+		if (colorCurrent <= 0 || colorCurrent >= 15)
+		{
+			colorCurrent = clamp(colorCurrent, 0, 15);
+			colorForward = !colorForward;
+		}
+		pal = modPalette[colorCurrent];
+	}
 }
 
 void BattleTileView::resetAttackCost()
 {
-	if (attackCostTicksAccumulated > 0)
+	if (attackCostElapsedUs > 0)
 	{
-		attackCostTicksAccumulated = 0;
+		attackCostElapsedUs = 0;
 		calculatedAttackCost = static_cast<int>(CalculatedAttackCostSpecial::NONE);
 	}
 }
@@ -1646,9 +1670,9 @@ void BattleTileView::setSelectedTilePosition(Vec3<int> newPosition)
 
 void BattleTileView::resetPathPreview()
 {
-	if (pathPreviewTicksAccumulated > 0)
+	if (pathPreviewElapsedUs > 0)
 	{
-		pathPreviewTicksAccumulated = 0;
+		pathPreviewElapsedUs = 0;
 		previewedPathCost = static_cast<int>(PreviewedPathCostSpecial::NONE);
 		pathPreview.clear();
 	}

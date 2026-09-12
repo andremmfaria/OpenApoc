@@ -163,11 +163,15 @@ class BattleView : public BattleTileView
 	bool modifierRAlt = false;
 	bool modifierLCtrl = false;
 	bool modifierRCtrl = false;
-	int leftThrowDelay = 0;
-	int rightThrowDelay = 0;
-	int actionImpossibleDelay = 0;
+	// Real-time debounces (StageFrame::elapsedRealUs), not frame counts - see battleview.cpp's
+	// *_US constants. These gate game actions (throw retry, attack-cost display, the
+	// "action impossible" cursor), so unlike purely cosmetic cadences they must stay
+	// FPS-independent rather than frame-counted.
+	uint64_t leftThrowDelayUs = 0;
+	uint64_t rightThrowDelayUs = 0;
+	uint64_t actionImpossibleDelayUs = 0;
 
-	void updateSelectionMode();
+	void updateSelectionMode(uint64_t elapsedRealUs);
 	void updateSelectedUnits();
 	void updateLayerButtons();
 	void updateSoldierButtons();

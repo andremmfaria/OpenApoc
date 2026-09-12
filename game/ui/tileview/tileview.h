@@ -2,10 +2,12 @@
 
 #include "framework/logger.h"
 #include "framework/stage.h"
+#include "framework/uicadence.h"
 #include "game/state/tilemap/tilemap.h"
 #include "library/colour.h"
 #include "library/sp.h"
 #include "library/vec.h"
+#include <algorithm>
 
 #define STRAT_TILE_X 8
 #define STRAT_TILE_Y 8
@@ -20,10 +22,19 @@ class Palette;
 class TileView : public Stage, public TileTransform
 {
   protected:
-	// Formula: FPS / DESIRED_ANIMATIONS_PER_SECOND
+	// Cosmetic, frame-counted icon-rotation cadences (framework/uicadence.h) - not real
+	// durations. Formula: uiCosmeticFramesPerSecond() / DESIRED_ANIMATIONS_PER_SECOND.
+	// std::max(1, ...) keeps the delay from collapsing to 0 (a modulo-by-zero) if a very low
+	// target FPS is ever configured.
 
-	static const int SELECTION_FRAME_ANIMATION_DELAY = 60 / 5;
-	static const int PORTAL_FRAME_ANIMATION_DELAY = 60 / 15;
+	static int SELECTION_FRAME_ANIMATION_DELAY()
+	{
+		return std::max(1, uiCosmeticFramesPerSecond() / 5);
+	}
+	static int PORTAL_FRAME_ANIMATION_DELAY()
+	{
+		return std::max(1, uiCosmeticFramesPerSecond() / 15);
+	}
 	// How many pixels from edge trigger scroll
 	static const int MOUSE_SCROLL_MARGIN = 1;
 
