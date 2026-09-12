@@ -12,7 +12,6 @@ static constexpr unsigned TICKS_PER_SECOND = VANILLA_TICKS_PER_SECOND * TICKS_MU
 static constexpr unsigned TICKS_PER_MINUTE = TICKS_PER_SECOND * 60;
 static constexpr unsigned TICKS_PER_HOUR = TICKS_PER_MINUTE * 60;
 static constexpr unsigned TICKS_PER_DAY = TICKS_PER_HOUR * 24;
-static constexpr unsigned TURBO_TICKS = 5 * 60 * TICKS_PER_SECOND;
 
 /*
     The original game's speed constant, at OpenApoc's tick resolution.
@@ -50,6 +49,17 @@ class GameTime
 	bool hourPassedFlag = false;
 	bool dayPassedFlag = false;
 	bool weekPassedFlag = false;
+
+	// Boundary counts accrued since the last clearFlags(), mirroring the *PassedFlag
+	// booleans above but counting every crossing instead of collapsing them to one bit.
+	// A single addTicks() call can span many boundaries (turbo, cheat-menu time skips);
+	// without this, callers that only see a bool run their once-per-boundary logic once
+	// no matter how many boundaries actually elapsed.
+	uint64_t secondsElapsedCount = 0;
+	uint64_t fiveMinutesElapsedCount = 0;
+	uint64_t hoursElapsedCount = 0;
+	uint64_t daysElapsedCount = 0;
+	uint64_t weeksElapsedCount = 0;
 
   public:
 	uint64_t ticks = 0;
@@ -118,6 +128,17 @@ class GameTime
 	// set at sunday midnight
 	bool weekPassed() const;
 	void setWeekPassed(bool newValue) { weekPassedFlag = newValue; }
+
+	// How many of each boundary elapsed since the last clearFlags(), as opposed to the
+	// *Passed() bools above which only say whether at least one did. A caller that must
+	// run once-per-boundary work (fuel burn, cargo expiry, per-second agent updates) at
+	// the correct rate under a multi-boundary addTicks() call needs the count, not the
+	// bool - see GameState::update().
+	uint64_t secondsElapsed() const;
+	uint64_t fiveMinutePeriodsElapsed() const;
+	uint64_t hoursElapsed() const;
+	uint64_t daysElapsed() const;
+	uint64_t weeksElapsed() const;
 
 	void clearFlags();
 
