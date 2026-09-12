@@ -1040,7 +1040,7 @@ void Agent::update(GameState &state, unsigned ticks)
 		return;
 	}
 
-	if (teleportTicksAccumulated < TELEPORT_TICKS_REQUIRED_VEHICLE)
+	if (teleportTicksAccumulated < TELEPORT_TICKS_REQUIRED_AGENT)
 	{
 		teleportTicksAccumulated += ticks;
 	}
