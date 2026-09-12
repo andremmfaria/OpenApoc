@@ -27,6 +27,7 @@
 #include "game/state/battle/battleunit.h"
 #include "game/state/gameevent.h"
 #include "game/state/gamestate.h"
+#include "game/state/gametime.h"
 #include "game/state/message.h"
 #include "game/state/rules/aequipmenttype.h"
 #include "game/state/rules/battle/battlemapparttype.h"
@@ -70,6 +71,57 @@ static const std::set<BodyPart> bodyParts{BodyPart::Body, BodyPart::Helmet, Body
 static const int NUM_TABS_RT = 3;
 static const int NUM_TABS_TB = 4;
 
+// Battle keeps today's {0, 0.5, 1, 2} ratios at the corrected absolute scale
+// (plans/997-implementation-plan.md SS3.2): this is PROVISIONAL. The original's TACP
+// binary shares the cityscape's pacer and its 36-per-second accumulator, but static
+// analysis found no player-facing real-time speed dial in it at all (real-time battle
+// reads as pause/run, not a multi-tier table), so there is no measured original battle
+// table to match the way there is for the city. These ratios are OpenApoc's own addition,
+// carried forward unchanged except for the frame-rate-coupling fix this branch makes.
+VanillaTickRate battleTickRate(BattleUpdateSpeed speed)
+{
+	switch (speed)
+	{
+		case BattleUpdateSpeed::Pause:
+			return vanillaTickRate(0);
+		case BattleUpdateSpeed::Speed1:
+			return vanillaTickRate(1, 2);
+		case BattleUpdateSpeed::Speed2:
+			return vanillaTickRate(1);
+		case BattleUpdateSpeed::Speed3:
+			return vanillaTickRate(2);
+	}
+	return vanillaTickRate(0);
+}
+
+TickAccumulator makeBattleTickAccumulator(BattleUpdateSpeed speed)
+{
+	auto rate = battleTickRate(speed);
+	auto maxTicks =
+	    TickAccumulator::ticksInOneClamp(rate.numerator, rate.denominator, STAGE_FRAME_CLAMP_US);
+	return TickAccumulator(rate.numerator, rate.denominator, STAGE_FRAME_CLAMP_US, maxTicks);
+}
+
+// hideDisplay preserves its current effective rate exactly, per SS3.3: 16 ticks were
+// delivered per rendered frame under the old frame-coupled code's assumed 60 FPS
+// baseline, i.e. a plain 960 ticks per real second. This is not one of the original's
+// speed tiers and does not derive from TICKS_MULTIPLIER; it is a legacy OpenApoc
+// fast-forward rate, preserved as-is.
+constexpr uint64_t HIDE_DISPLAY_RATE_NUMERATOR = 16 * 60;
+constexpr uint64_t HIDE_DISPLAY_RATE_DENOMINATOR = 1;
+
+TickAccumulator makeHideDisplayAccumulator()
+{
+	auto maxTicks = TickAccumulator::ticksInOneClamp(
+	    HIDE_DISPLAY_RATE_NUMERATOR, HIDE_DISPLAY_RATE_DENOMINATOR, STAGE_FRAME_CLAMP_US);
+	return TickAccumulator(HIDE_DISPLAY_RATE_NUMERATOR, HIDE_DISPLAY_RATE_DENOMINATOR,
+	                       STAGE_FRAME_CLAMP_US, maxTicks);
+}
+
+// Delivery stays chunked at today's granularity (SS3.3): a big single-call jump tunnels
+// projectile collision segments and can span more than one GameTime boundary in a call.
+constexpr unsigned int BATTLE_TICK_CHUNK = 4;
+
 } // anonymous namespace
 
 BattleView::BattleView(sp<GameState> gameState)
@@ -78,7 +130,9 @@ BattleView::BattleView(sp<GameState> gameState)
                      Vec2<int>{STRAT_TILE_X, STRAT_TILE_Y}, TileViewMode::Isometric,
                      gameState->current_battle->battleViewScreenCenter, *gameState),
       baseForm(ui().getForm("battle/battle")),
-      debugOverlay(ui().getForm("battle/debugoverlay_battle")), state(gameState),
+      debugOverlay(ui().getForm("battle/debugoverlay_battle")),
+      tickAccumulator(makeBattleTickAccumulator(BattleUpdateSpeed::Pause)),
+      hideDisplayAccumulator(makeHideDisplayAccumulator()), state(gameState),
       battle(*state->current_battle), followAgent(false),
       selectionState(BattleSelectionState::Normal)
 {
@@ -188,7 +242,7 @@ BattleView::BattleView(sp<GameState> gameState)
 			psiTab = uiTabsRT[1];
 			primingTab = uiTabsRT[2];
 			baseForm->findControlTyped<RadioButton>("BUTTON_SPEED0")->setChecked(true);
-			updateSpeed = BattleUpdateSpeed::Pause;
+			applyUpdateSpeed(BattleUpdateSpeed::Pause);
 			lastSpeed = BattleUpdateSpeed::Speed1;
 			break;
 		case Battle::Mode::TurnBased:
@@ -197,7 +251,7 @@ BattleView::BattleView(sp<GameState> gameState)
 			primingTab = uiTabsTB[2];
 			notMyTurnTab = uiTabsTB[3];
 			baseForm->findControlTyped<RadioButton>("BUTTON_SPEED2")->setChecked(true);
-			updateSpeed = BattleUpdateSpeed::Speed2;
+			applyUpdateSpeed(BattleUpdateSpeed::Speed2);
 			lastSpeed = BattleUpdateSpeed::Pause;
 			break;
 	}
@@ -1245,17 +1299,17 @@ BattleView::BattleView(sp<GameState> gameState)
 	                  [this](Event *)
 	                  {
 		                  this->lastSpeed = this->updateSpeed;
-		                  this->updateSpeed = BattleUpdateSpeed::Pause;
+		                  applyUpdateSpeed(BattleUpdateSpeed::Pause);
 	                  });
 	baseForm->findControl("BUTTON_SPEED1")
 	    ->addCallback(FormEventType::CheckBoxSelected,
-	                  [this](Event *) { this->updateSpeed = BattleUpdateSpeed::Speed1; });
+	                  [this](Event *) { applyUpdateSpeed(BattleUpdateSpeed::Speed1); });
 	baseForm->findControl("BUTTON_SPEED2")
 	    ->addCallback(FormEventType::CheckBoxSelected,
-	                  [this](Event *) { this->updateSpeed = BattleUpdateSpeed::Speed2; });
+	                  [this](Event *) { applyUpdateSpeed(BattleUpdateSpeed::Speed2); });
 	baseForm->findControl("BUTTON_SPEED3")
 	    ->addCallback(FormEventType::CheckBoxSelected,
-	                  [this](Event *) { this->updateSpeed = BattleUpdateSpeed::Speed3; });
+	                  [this](Event *) { applyUpdateSpeed(BattleUpdateSpeed::Speed3); });
 
 	for (int i = 0; i < 6; i++)
 	{
@@ -1341,6 +1395,12 @@ void BattleView::refresh()
 void BattleView::resume()
 {
 	state->skipTurboCalculations = config().getBool("OpenApoc.NewFeature.SkipTurboMovement");
+	// Hygiene, not a burst fix (SS3.4): a resumed view already gets an ordinary frame
+	// delta, never a backlog, since StageFrame::elapsedRealUs is measured globally and
+	// not per-stage. This just makes the first post-resume tick land at a predictable
+	// phase.
+	tickAccumulator.reset();
+	hideDisplayAccumulator.reset();
 	BattleTileView::resume();
 	BattleView::refresh();
 }
@@ -1410,6 +1470,21 @@ void BattleView::setUpdateSpeed(BattleUpdateSpeed updateSpeed)
 		case BattleUpdateSpeed::Speed3:
 			baseForm->findControlTyped<RadioButton>("BUTTON_SPEED3")->setChecked(true);
 			break;
+	}
+}
+
+void BattleView::applyUpdateSpeed(BattleUpdateSpeed newSpeed)
+{
+	this->updateSpeed = newSpeed;
+	auto rate = battleTickRate(newSpeed);
+	tickAccumulator.setRate(rate.numerator, rate.denominator);
+	tickAccumulator.setMaxTicksPerAdvance(
+	    TickAccumulator::ticksInOneClamp(rate.numerator, rate.denominator, STAGE_FRAME_CLAMP_US));
+	if (newSpeed == BattleUpdateSpeed::Pause)
+	{
+		// A paused view must accrue nothing (SS3.4); zero any fraction left over from
+		// whatever speed was active before Pause was hit.
+		tickAccumulator.reset();
 	}
 }
 
@@ -1521,29 +1596,17 @@ void BattleView::update(const StageFrame &frame)
 	{
 		updateHiddenForm();
 	}
-	unsigned int ticks = 0;
-	switch (updateSpeed)
-	{
-		case BattleUpdateSpeed::Pause:
-			ticks = 0;
-			break;
-		case BattleUpdateSpeed::Speed1:
-			ticks = 1;
-			break;
-		case BattleUpdateSpeed::Speed2:
-			ticks = 2;
-			break;
-		case BattleUpdateSpeed::Speed3:
-			ticks = 4;
-			break;
-	}
-	if (hideDisplay)
-	{
-		ticks = 16;
-	}
+	// hideDisplay runs its own fixed-rate accumulator (SS3.3); otherwise the normal
+	// updateSpeed-driven one. Only the active one of the two advances, so the other's
+	// remainder stays frozen rather than accruing while it is not in use.
+	uint64_t ticks = hideDisplay ? hideDisplayAccumulator.advance(frame.elapsedRealUs)
+	                             : tickAccumulator.advance(frame.elapsedRealUs);
 	while (ticks > 0)
 	{
-		int ticksPerUpdate = UPDATE_EVERY_TICK ? 1 : hideDisplay ? 4 : ticks;
+		unsigned int ticksPerUpdate =
+		    UPDATE_EVERY_TICK
+		        ? 1u
+		        : static_cast<unsigned int>(std::min<uint64_t>(ticks, BATTLE_TICK_CHUNK));
 		state->update(ticksPerUpdate);
 		ticks -= ticksPerUpdate;
 		if (hideDisplay)
@@ -2230,6 +2293,9 @@ void BattleView::updateTBButtons()
 void BattleView::updateHiddenForm()
 {
 	hideDisplay = true;
+	// Start the fast-forward accumulator clean each time hideDisplay engages, rather than
+	// carrying over a fraction accrued under whatever updateSpeed rate was active before.
+	hideDisplayAccumulator.reset();
 	hiddenForm->findControlTyped<Label>("TEXT_TURN")->setText(format("{0}", battle.currentTurn));
 	hiddenForm->findControlTyped<Label>("TEXT_SIDE")
 	    ->setText(battle.currentActiveOrganisation->name);

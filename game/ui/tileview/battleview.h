@@ -1,5 +1,6 @@
 #pragma once
 
+#include "framework/tickaccumulator.h"
 #include "game/state/battle/battleunit.h"
 #include "game/ui/general/notificationscreen.h"
 #include "game/ui/tileview/battletileview.h"
@@ -115,6 +116,16 @@ class BattleView : public BattleTileView
 	std::vector<sp<Form>> uiTabsTB;
 	BattleUpdateSpeed updateSpeed;
 	BattleUpdateSpeed lastSpeed;
+	// Converts real time into game ticks for the current updateSpeed; see
+	// applyUpdateSpeed(). A separate accumulator paces the hideDisplay fast-forward, since
+	// it runs at its own fixed rate independent of updateSpeed.
+	TickAccumulator tickAccumulator;
+	TickAccumulator hideDisplayAccumulator;
+
+	// Single point of assignment for updateSpeed: keeps tickAccumulator's rate in lockstep
+	// with it. setUpdateSpeed() only flips the radio button, which round-trips back here
+	// through the button's own CheckBoxSelected callback.
+	void applyUpdateSpeed(BattleUpdateSpeed newSpeed);
 
 	// Units selected before control was taken away
 	std::list<StateRef<BattleUnit>> lastSelectedUnits;
