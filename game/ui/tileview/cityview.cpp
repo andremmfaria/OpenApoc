@@ -204,10 +204,13 @@ constexpr size_t NUM_TABS = 8;
 
 // City tiers are the original's measured rates: Speed1..Speed4 = 0.505736 / 1.011473 /
 // 2.022946 / 3.034419 game-seconds per real second, i.e. the original's own speed_value
-// literals {1,2,4,6} over its 36-per-second accumulator. Speed5 (turbo) bypasses the
-// accumulator entirely (GameState::updateTurbo is still frame-coupled; retuning it to a
-// real-time rate is deferred to a follow-up change) so its rate here is never actually
-// consumed.
+// literals {1,2,4,6} over its 36-per-second accumulator. Speed5 (turbo) is retuned to the
+// original's Ultra rate of 303.441874 game-seconds per real second - its own speed_value of
+// 600 over the same accumulator - rather than reproducing OpenApoc's previous frame-rate-
+// coupled turbo (18,000 game-sec/real-sec at 60 FPS, 43,200 at 144). This is a deliberate
+// 59.3x slowdown versus that old behaviour: skipping 5 game-minutes goes from about 0.02s
+// to 1.0s, 1 game-hour from about 0.20s to 11.9s, 1 game-day from about 4.8s to 4.7 real
+// minutes, and 1 game-week from about 33.6s to 33.2 real minutes.
 VanillaTickRate cityTickRate(CityUpdateSpeed speed)
 {
 	switch (speed)
@@ -223,7 +226,7 @@ VanillaTickRate cityTickRate(CityUpdateSpeed speed)
 		case CityUpdateSpeed::Speed4:
 			return vanillaTickRate(6);
 		case CityUpdateSpeed::Speed5:
-			return vanillaTickRate(0);
+			return vanillaTickRate(600);
 	}
 	return vanillaTickRate(0);
 }
@@ -2113,45 +2116,38 @@ void CityView::render()
 void CityView::update(const StageFrame &frame)
 {
 	int day = state->gameTime.getDay();
-	bool turbo = false;
 
-	if (this->updateSpeed == CityUpdateSpeed::Speed5)
+	// Turbo auto-drops to Speed1 the instant it becomes unsafe (hostiles, an
+	// AttackBuilding/AttackVehicle mission, or a live projectile), checked both before
+	// ticking (so a disallowed turbo never ticks at the turbo rate) and after (since this
+	// update() pass can itself trigger combat).
+	if (this->updateSpeed == CityUpdateSpeed::Speed5 && !this->state->canTurbo())
 	{
-		if (!this->state->canTurbo())
-		{
-			setUpdateSpeed(CityUpdateSpeed::Speed1);
-		}
-		else
-		{
-			turbo = true;
-		}
+		setUpdateSpeed(CityUpdateSpeed::Speed1);
 	}
 	baseForm->findControl("BUTTON_SPEED5")->Enabled = this->state->canTurbo();
 
-	if (turbo)
+	uint64_t ticks = tickAccumulator.advance(frame.elapsedRealUs);
+	// Turbo hands the whole frame's ticks to one update() call, as the old per-frame
+	// 5-minute block did. At 303 game-seconds per real second the frame's ticks split into
+	// CITY_TICK_CHUNK-sized calls run to thousands of full GameState passes per frame,
+	// which costs seconds of CPU and leaves turbo slower than Speed4 once the frame clamp
+	// discards the backlog. The reasons the other tiers chunk do not hold under turbo:
+	// canTurbo() guarantees no projectiles to tunnel, and GameTime::addTicks now reports
+	// every boundary a large call crosses.
+	const uint64_t chunk =
+	    this->updateSpeed == CityUpdateSpeed::Speed5 ? ticks : uint64_t{CITY_TICK_CHUNK};
+	while (ticks > 0)
 	{
-		// Turbo still advances once per rendered frame rather than by real time; that
-		// frame-rate coupling is real but out of scope here (see
-		// GameState::updateTurbo's own notes) - fixing it requires the boundary-count
-		// fix for GameTime::addTicks, which is separate follow-up work.
-		this->state->updateTurbo();
-		if (!this->state->canTurbo())
-		{
-			setUpdateSpeed(CityUpdateSpeed::Speed1);
-		}
+		unsigned int ticksPerUpdate =
+		    UPDATE_EVERY_TICK ? 1u : static_cast<unsigned int>(std::min<uint64_t>(ticks, chunk));
+		state->update(ticksPerUpdate);
+		ticks -= ticksPerUpdate;
 	}
-	else
+
+	if (this->updateSpeed == CityUpdateSpeed::Speed5 && !this->state->canTurbo())
 	{
-		uint64_t ticks = tickAccumulator.advance(frame.elapsedRealUs);
-		while (ticks > 0)
-		{
-			unsigned int ticksPerUpdate =
-			    UPDATE_EVERY_TICK
-			        ? 1u
-			        : static_cast<unsigned int>(std::min<uint64_t>(ticks, CITY_TICK_CHUNK));
-			state->update(ticksPerUpdate);
-			ticks -= ticksPerUpdate;
-		}
+		setUpdateSpeed(CityUpdateSpeed::Speed1);
 	}
 
 	// Switch dimensions
