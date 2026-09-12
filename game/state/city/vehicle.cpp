@@ -418,7 +418,12 @@ class FlyingVehicleMover : public VehicleMover
 		// so this = ticks_per_sec / (speed * ticks_per_sec / tick_scale / city_scale )
 		// which simplifies to 1 / (speed / tick_scale / city_scale)
 		// or to tick_scale * city_scale / speed
-		int ticksPerTile = TICK_SCALE * VELOCITY_SCALE_CITY.x / vehicle.getSpeed();
+		// A stationary vehicle (speed 0, eg. out of fuel) has no well-defined ticks-per-tile,
+		// so fall back to "never" rather than dividing by zero
+		float vehicleSpeed = vehicle.getSpeed();
+		int ticksPerTile = vehicleSpeed > 0.0f
+		                       ? (int)((float)TICK_SCALE * VELOCITY_SCALE_CITY.x / vehicleSpeed)
+		                       : INT_MAX;
 
 		// Flag whether we need to update banking and direction
 		bool updateSprite = false;
@@ -648,7 +653,12 @@ class GroundVehicleMover : public VehicleMover
 		// so this = ticks_per_sec / (speed * ticks_per_sec / tick_scale / city_scale )
 		// which simplifies to 1 / (speed / tick_scale / city_scale)
 		// or to tick_scale * city_scale / speed
-		int ticksPerTile = TICK_SCALE * VELOCITY_SCALE_CITY.x / vehicle.getSpeed();
+		// A stationary vehicle (speed 0, eg. out of fuel) has no well-defined ticks-per-tile,
+		// so fall back to "never" rather than dividing by zero
+		float vehicleSpeed = vehicle.getSpeed();
+		int ticksPerTile = vehicleSpeed > 0.0f
+		                       ? (int)((float)TICK_SCALE * VELOCITY_SCALE_CITY.x / vehicleSpeed)
+		                       : INT_MAX;
 
 		unsigned lastTicksToMove = 0;
 
