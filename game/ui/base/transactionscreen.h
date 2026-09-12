@@ -1,9 +1,11 @@
 #pragma once
 
+#include "framework/uicadence.h"
 #include "game/state/rules/agenttype.h"
 #include "game/state/stateobject.h"
 #include "game/ui/base/basestage.h"
 #include "library/sp.h"
+#include <cstdint>
 #include <functional>
 #include <list>
 
@@ -30,9 +32,10 @@ class AEquipmentType;
 
 // TODO: move to base?
 constexpr int MAX_BASES = 8;
-// Don't update highlight right away so that we don't slow too much
-// Instead do it after user doesn't act for half a second
-constexpr int HIGHLIGHT_UPDATE_DELAY = 30;
+// Don't update highlight right away so that we don't slow too much - instead do it after the
+// user doesn't act for half a second. A real-time duration (StageFrame::elapsedRealUs), not a
+// frame count.
+constexpr uint64_t HIGHLIGHT_UPDATE_DELAY_US = US_PER_SECOND / 2;
 
 class TransactionScreen : public BaseStage
 {
@@ -54,8 +57,8 @@ class TransactionScreen : public BaseStage
 	void changeBase(sp<Base> newBase) override;
 	void restoreBase();
 
-	// The counter of the highlight update countdown.
-	int framesUntilHighlightUpdate = 0;
+	// The countdown to the next highlight update, in real microseconds remaining.
+	uint64_t highlightUpdateDelayUs = 0;
 	// Keeps previous highlight. That allows not to redraw the mini-view buttons by every click.
 	BaseGraphics::FacilityHighlight viewHighlightPrevious = BaseGraphics::FacilityHighlight::None;
 

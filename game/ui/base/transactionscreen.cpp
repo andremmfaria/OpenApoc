@@ -466,7 +466,7 @@ void TransactionScreen::updateFormValues(bool queueHighlightUpdate)
 
 	if (queueHighlightUpdate)
 	{
-		framesUntilHighlightUpdate = HIGHLIGHT_UPDATE_DELAY;
+		highlightUpdateDelayUs = HIGHLIGHT_UPDATE_DELAY_US;
 	}
 	else
 	{
@@ -738,10 +738,10 @@ void TransactionScreen::eventOccurred(Event *e)
 void TransactionScreen::update(const StageFrame &frame)
 {
 	form->update();
-	if (framesUntilHighlightUpdate > 0)
+	if (highlightUpdateDelayUs > 0)
 	{
-		framesUntilHighlightUpdate--;
-		if (framesUntilHighlightUpdate == 0)
+		highlightUpdateDelayUs -= std::min(highlightUpdateDelayUs, frame.elapsedRealUs);
+		if (highlightUpdateDelayUs == 0)
 		{
 			updateBaseHighlight();
 		}
