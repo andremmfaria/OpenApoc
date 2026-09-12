@@ -8,6 +8,10 @@
 namespace OpenApoc
 {
 
+// Shared by the city (Scenery) and battle (BattleMapPart) map part implementations - was
+// previously defined identically in both scenery.h and battlemappart.h.
+#define FALLING_ACCELERATION_MAP_PART 0.16666667f // 1/6th
+
 class TileMap;
 
 class SupportedMapPart

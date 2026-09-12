@@ -27,9 +27,6 @@ static const OpenApoc::Vec3<float> VELOCITY_SCALE_BATTLE{
 namespace OpenApoc
 {
 
-// FIXME: Alexey Andronov: Does anyone know why we divide by 4 here?
-static const unsigned TICK_SCALE = TICKS_PER_SECOND / 4;
-
 class Image;
 class TileMap;
 class Collision;
