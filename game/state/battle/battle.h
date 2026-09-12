@@ -254,7 +254,7 @@ class Battle : public std::enable_shared_from_this<Battle>
 	                         bool playSound, bool expired);
 
 	void update(GameState &state, unsigned int ticks);
-	void updateTB(GameState &state);
+	void updateTB(GameState &state, unsigned int ticks);
 	void updateRT(GameState &state, unsigned int ticks);
 	void updateTBBegin(GameState &state);
 	void updateTBEnd(GameState &state);
