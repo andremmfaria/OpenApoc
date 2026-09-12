@@ -129,6 +129,7 @@ void dumpOptionsToLog()
 	dumpOption(optionDGCrashingVehicles);
 	dumpOption(optionFuelCrashingVehicles);
 	dumpOption(optionSkipTurbo);
+	dumpOption(optionLegacySpeeds);
 	dumpOption(optionRunAndKneel);
 	dumpOption(optionSeedRng);
 	dumpOption(optionAutoReload);
@@ -419,6 +420,11 @@ ConfigOptionBool optionFuelCrashingVehicles(
     tr("Vehicles crash when out of fuel (Weapons and Modules may be lost in crash)"), true);
 ConfigOptionBool optionSkipTurbo("OpenApoc.NewFeature", "SkipTurboMovement",
                                  tr("Skip turbo movement calculations"), false);
+ConfigOptionBool optionLegacySpeeds(
+    "OpenApoc.NewFeature", "LegacySpeeds",
+    tr("Use the pre-fidelity city/battle speed tiers and turbo rate (frame-rate independent, "
+       "but faster than the original) instead of the corrected, original-matching rates"),
+    false);
 ConfigOptionBool optionRunAndKneel("OpenApoc.NewFeature", "RunAndKneel",
                                    tr("All units run and kneel by default"), true);
 ConfigOptionBool optionSeedRng("OpenApoc.NewFeature", "SeedRng", tr("Seed RNG on game start"),
