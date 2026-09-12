@@ -52,6 +52,7 @@ set (FRAMEWORK_HEADER_FILES
 	sound.h
 	sound_interface.h
 	stage.h
+	stageframe.h
 	stagestack.h
 	video.h
 	options.h
