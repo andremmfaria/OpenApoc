@@ -10,6 +10,7 @@ set (FRAMEWORK_SOURCE_FILES
 	event.cpp
 	font.cpp
 	framework.cpp
+	frametiming.cpp
 	image.cpp
 	jukebox.cpp
 	logger.cpp
@@ -37,6 +38,7 @@ set (FRAMEWORK_HEADER_FILES
 	event.h
 	font.h
 	framework.h
+	frametiming.h
 	filesystem.h
 	fs.h
 	image.h
