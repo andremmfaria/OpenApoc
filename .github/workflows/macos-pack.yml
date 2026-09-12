@@ -10,7 +10,8 @@ env:
   HOMEBREW_NO_INSTALL_CLEANUP: 1
 
 jobs:
-  macos:
+  package:
+    name: macOS package
     runs-on: macos-15
 
     steps:
@@ -18,13 +19,13 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install dependencies
+    - name: Prepare dependencies
       run: python3 .github/scripts/package.py macos-tools
 
-    - name: Create build environment
+    - name: Prepare build directory
       run: python3 .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
 
-    - name: Download minimal cd image
+    - name: Prepare data
       run: python3 .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
 
     - name: Configure CMake

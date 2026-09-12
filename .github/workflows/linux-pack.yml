@@ -6,7 +6,8 @@ permissions:
   contents: write
 
 jobs:
-  linux:
+  package:
+    name: Linux package
     runs-on: ubuntu-24.04
 
     steps:
@@ -14,13 +15,13 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Create build environment
+    - name: Prepare build directory
       run: python3 .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
 
-    - name: Download minimal cd image
+    - name: Prepare data
       run: python3 .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
 
-    - name: Install dependencies
+    - name: Prepare dependencies
       run: python3 .github/scripts/cmake.py install --profile build --extra-package gcc --extra-package g++
 
     - name: Configure CMake
