@@ -23,6 +23,7 @@ set (FRAMEWORK_SOURCE_FILES
 	sound.cpp
 	stagestack.cpp
 	tickaccumulator.cpp
+	uicadence.cpp
 	video/smk.cpp
 	logger_sdldialog.cpp
 	logger_file.cpp
@@ -58,6 +59,7 @@ set (FRAMEWORK_HEADER_FILES
 	stageframe.h
 	stagestack.h
 	tickaccumulator.h
+	uicadence.h
 	video.h
 	options.h
 	modinfo.h)
