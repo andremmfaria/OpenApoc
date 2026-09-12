@@ -133,7 +133,7 @@ TickAccumulator makeBattleTickAccumulator(BattleUpdateSpeed speed)
 // hideDisplay preserves its current effective rate exactly: 16 ticks were
 // delivered per rendered frame under the old frame-coupled code's assumed 60 FPS
 // baseline, i.e. a plain 960 ticks per real second. This is not one of the original's
-// speed tiers and does not derive from TICKS_MULTIPLIER; it is a legacy OpenApoc
+// speed tiers and does not derive from VANILLA_TO_TICKS; it is a legacy OpenApoc
 // fast-forward rate, preserved as-is.
 constexpr uint64_t HIDE_DISPLAY_RATE_NUMERATOR = 16 * 60;
 constexpr uint64_t HIDE_DISPLAY_RATE_DENOMINATOR = 1;

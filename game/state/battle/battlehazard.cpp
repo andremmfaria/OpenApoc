@@ -25,8 +25,12 @@ BattleHazard::BattleHazard(GameState &state, StateRef<DamageType> damageType, bo
 	frame = randBoundsExclusive(state.rng, 0, HAZARD_FRAME_COUNT);
 	if (delayVisibility)
 	{
+		// The "- 4" here is an unexplained magic offset with no comment or commit message
+		// in its history (git blame traces it back to the original hazard implementation);
+		// preserved as-is. It is a vanilla-unit adjustment made before the value is
+		// converted to ticks below via VANILLA_TO_TICKS.
 		ticksUntilVisible =
-		    std::max((unsigned)0, (hazardType->doodadType->lifetime - 4) * TICKS_MULTIPLIER);
+		    std::max((unsigned)0, (hazardType->doodadType->lifetime - 4) * VANILLA_TO_TICKS);
 	}
 	frameChangeTicksAccumulated =
 	    randBoundsInclusive(state.rng, (unsigned)0, TICKS_PER_HAZARD_UPDATE);

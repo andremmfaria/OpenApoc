@@ -30,7 +30,7 @@ void Scenery::ceaseSupportProvision()
 
 void Scenery::queueCollapse(unsigned additionalDelay)
 {
-	ticksUntilCollapse = TICKS_MULTIPLIER + additionalDelay;
+	ticksUntilCollapse = TICKS_PER_VANILLA_FRAME + additionalDelay;
 }
 
 void Scenery::cancelCollapse() { ticksUntilCollapse = 0; }

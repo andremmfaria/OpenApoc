@@ -294,7 +294,7 @@ static bool test_ticks_in_one_clamp_matches_hand_computed_values()
 }
 
 // hideDisplay's own fixed 960 ticks/s rate (16 ticks/frame at the old assumed 60 FPS),
-// unrelated to TICKS_MULTIPLIER.
+// unrelated to VANILLA_TO_TICKS.
 static bool test_hide_display_rate_ceiling()
 {
 	uint64_t ceiling = TickAccumulator::ticksInOneClamp(960, 1, 250000);
@@ -307,7 +307,7 @@ static bool test_hide_display_rate_ceiling()
 }
 
 // Turbo is retuned to the original's Ultra rate, 303.441874 game-seconds per
-// real second (600 * TICKS_MULTIPLIER * 1193182 / 65536 = 43,695.6 ticks/s), and like
+// real second (600 * VANILLA_TO_TICKS * 1193182 / 65536 = 43,695.6 ticks/s), and like
 // every other tier this must hold regardless of the rendered frame rate.
 static bool test_turbo_rate_matches_original()
 {

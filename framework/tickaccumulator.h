@@ -37,7 +37,7 @@ class TickAccumulator
 	static constexpr uint64_t MICROTICKS_PER_TICK = 1000000ull;
 
 	// rateNumerator / rateDenominator is the exact ticks-per-real-second rate, e.g.
-	// speed_value * TICKS_MULTIPLIER * 1193182 / 65536 (SS3.1/SS3.2). A rate of 0/x
+	// speed_value * VANILLA_TO_TICKS * 1193182 / 65536. A rate of 0/x
 	// (Pause) accrues nothing.
 	TickAccumulator(uint64_t rateNumerator, uint64_t rateDenominator, uint64_t elapsedClampUs,
 	                uint64_t maxTicksPerAdvance);

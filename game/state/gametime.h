@@ -30,15 +30,15 @@ static constexpr unsigned TICKS_PER_DAY = TICKS_PER_HOUR * 24;
       that relationship is ever retuned independently. Use it for one-vanilla-frame delays
       (map part / item collapse, explosion expansion ticks).
 
-    TICKS_MULTIPLIER survives only as the base ratio TICKS_PER_SECOND is built from, above;
-    nothing else should reference it directly.
+    The old undifferentiated multiplier survives only as the base ratio TICKS_PER_SECOND is
+    built from, above (see its own definition); nothing else should reference it directly.
 
     TICK_SCALE, defined further down, is a separate physics-only divisor. It is presently
     36 as well, but that is a coincidence of TICKS_PER_SECOND's current value, not a
     relationship to preserve - see its own doc comment.
 */
 static constexpr unsigned VANILLA_TO_TICKS = TICKS_PER_SECOND / VANILLA_TICKS_PER_SECOND;
-static constexpr unsigned TICKS_PER_VANILLA_FRAME = TICKS_MULTIPLIER;
+static constexpr unsigned TICKS_PER_VANILLA_FRAME = TICKS_PER_SECOND / VANILLA_TICKS_PER_SECOND;
 
 /*
     The original game's speed constant, at OpenApoc's tick resolution.

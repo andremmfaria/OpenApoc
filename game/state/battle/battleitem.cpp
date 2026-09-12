@@ -350,7 +350,7 @@ void BattleItem::tryCollapse()
 	}
 	if (!findSupport())
 	{
-		ticksUntilCollapse = TICKS_MULTIPLIER;
+		ticksUntilCollapse = TICKS_PER_VANILLA_FRAME;
 	}
 }
 

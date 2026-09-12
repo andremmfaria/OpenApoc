@@ -99,7 +99,7 @@ void InitialGameStateExtractor::extractVehicleEquipment(GameState &state) const
 				e->damage = wData.damage;
 				e->accuracy = 100 - wData.accuracy;
 				e->fire_delay =
-				    wData.fire_delay * VEQUIPMENT_RELOAD_TIME_MULTIPLIER * TICKS_MULTIPLIER;
+				    wData.fire_delay * VEQUIPMENT_RELOAD_TIME_MULTIPLIER * VANILLA_TO_TICKS;
 				e->tail_size = wData.tail_size;
 				e->guided = wData.guided != 0 ? true : false;
 				e->turn_rate = wData.turn_rate;
