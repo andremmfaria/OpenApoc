@@ -206,7 +206,7 @@ void TextEdit::update()
 {
 	if (editing)
 	{
-		caretTimer = (caretTimer + 1) % TEXTEDITOR_CARET_TOGGLE_TIME;
+		caretTimer = (caretTimer + 1) % textEditorCaretToggleFrames();
 		if (caretTimer == 0)
 		{
 			caretDraw = !caretDraw;

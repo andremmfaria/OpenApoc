@@ -42,7 +42,7 @@ void Ticker::onRender()
 	{
 		UString out = text;
 		xpos = align(TextHAlign, Size.x, font->getFontWidth(out));
-		ypos = 0 - animTimer / 4;
+		ypos = 0 - animTimer / SCROLL_DIVISOR();
 		auto outImage = font->getString(out);
 		fw().renderer->draw(outImage, Vec2<float>{xpos, ypos});
 
@@ -50,7 +50,7 @@ void Ticker::onRender()
 		{
 			UString in = messages.front();
 			xpos = align(TextHAlign, Size.x, font->getFontWidth(in));
-			ypos = 15 - animTimer / 4;
+			ypos = LINE_HEIGHT - animTimer / SCROLL_DIVISOR();
 			auto inImage = font->getString(in);
 			fw().renderer->draw(inImage, Vec2<float>{xpos, ypos});
 		}
@@ -66,7 +66,7 @@ void Ticker::update()
 	{
 		this->setDirty();
 		animTimer++;
-		if (animTimer >= ANIM_TICKS)
+		if (animTimer >= ANIM_TICKS())
 		{
 			animTimer = 0;
 			animating = false;
@@ -84,8 +84,8 @@ void Ticker::update()
 	else
 	{
 		displayTimer++;
-		if ((messages.empty() && displayTimer >= DISPLAY_TICKS) ||
-		    (!messages.empty() && (displayTimer >= ANIM_TICKS * 2 || text.empty())))
+		if ((messages.empty() && displayTimer >= DISPLAY_TICKS()) ||
+		    (!messages.empty() && (displayTimer >= ANIM_TICKS() * 2 || text.empty())))
 		{
 			displayTimer = 0;
 			animating = true;
