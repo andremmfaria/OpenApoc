@@ -1423,12 +1423,12 @@ void BattleView::setSelectedTab(sp<Form> tabPtr)
 	this->activeTab = tabPtr;
 }
 
-void BattleView::update()
+void BattleView::update(const StageFrame &frame)
 {
 	bool realTime = battle.mode == Battle::Mode::RealTime;
 
 	// Parent update
-	BattleTileView::update();
+	BattleTileView::update(frame);
 
 	// Update debug menu
 	if (!config().getBool("OpenApoc.NewFeature.DebugCommandsVisible"))

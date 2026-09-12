@@ -261,7 +261,7 @@ void BuildingScreen::eventOccurred(Event *e)
 	}
 }
 
-void BuildingScreen::update() { menuform->update(); }
+void BuildingScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void BuildingScreen::render()
 {

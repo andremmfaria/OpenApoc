@@ -156,7 +156,7 @@ class BattleTileView : public TileView
 
 	void eventOccurred(Event *e) override;
 	void render() override;
-	void update() override;
+	void update(const StageFrame &frame) override;
 };
 
 template <> struct is_partial_enum<BattleTileView::PreviewedPathCostSpecial> : std::true_type

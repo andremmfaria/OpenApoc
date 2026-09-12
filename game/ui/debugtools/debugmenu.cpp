@@ -62,7 +62,7 @@ void DebugMenu::eventOccurred(Event *e)
 	}
 }
 
-void DebugMenu::update() { menuform->update(); }
+void DebugMenu::update(const StageFrame &frame) { menuform->update(); }
 
 void DebugMenu::render()
 {

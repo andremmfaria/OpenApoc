@@ -76,7 +76,7 @@ void LoadingScreen::eventOccurred(Event *e)
 	}
 }
 
-void LoadingScreen::update()
+void LoadingScreen::update(const StageFrame &frame)
 {
 	loadingimageangle += (float)(M_PI + 0.05f);
 	if (loadingimageangle >= (float)(M_PI * 2.0f))

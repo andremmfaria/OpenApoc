@@ -51,7 +51,7 @@ class CityTileView : public TileView
 
 	void eventOccurred(Event *e) override;
 	void render() override;
-	void update() override;
+	void update(const StageFrame &frame) override;
 
 	bool DEBUG_SHOW_VEHICLE_PATH = false;
 	bool DEBUG_SHOW_ROAD_PATHFINDING = false;

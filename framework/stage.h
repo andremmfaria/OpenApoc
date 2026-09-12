@@ -1,6 +1,7 @@
 #pragma once
 
 #include "framework/logger.h"
+#include "framework/stageframe.h"
 #include "library/sp.h"
 
 namespace OpenApoc
@@ -49,6 +50,11 @@ class StageCmd
 /*
     Class: Stage
     You must inherit this in any game "screens", as it provides the framework's functionality
+
+    Convention: <update> is called once per <StageFrame> (see <Framework::run>). Every stage
+    except the tick-consuming tile views (currently CityView and BattleView) should call
+    `form->update()` exactly once per <StageFrame>; nobody should loop `form->update()` per
+    game tick, since that would decouple form animation speed from real time.
 */
 
 class Stage : public std::enable_shared_from_this<Stage>
@@ -96,8 +102,10 @@ class Stage : public std::enable_shared_from_this<Stage>
 	/*
 	    Function: Update
 	    Called once per rendered frame, paced by <Options::targetFPS>.
+	    Parameters:
+	        frame - The <StageFrame> for this iteration of <Framework::run>.
 	*/
-	virtual void update() = 0;
+	virtual void update(const StageFrame &frame) = 0;
 
 	/*
 	    Function: Render

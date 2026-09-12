@@ -466,7 +466,7 @@ void AEquipScreen::eventOccurred(Event *e)
 	}
 }
 
-void AEquipScreen::update() { formMain->update(); }
+void AEquipScreen::update(const StageFrame &frame) { formMain->update(); }
 
 void AEquipScreen::render()
 {
