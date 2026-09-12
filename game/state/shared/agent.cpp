@@ -1296,9 +1296,10 @@ StateRef<AEquipmentType> Agent::getDominantItemInHands(GameState &state,
 	// Calculate item priorities:
 	// - Firing (whichever fires sooner)
 	// - CanFire >> Two-Handed >> Weapon >> Usable Item >> Others
+	// weapon-priority ranking: 1440 == 10s at 144 TPS, expressed as TICKS_PER_SECOND * 10
 	int e1Priority =
 	    e1->isFiring()
-	        ? 1440 - e1->weapon_fire_ticks_remaining
+	        ? TICKS_PER_SECOND * 10 - e1->weapon_fire_ticks_remaining
 	        : (e1->canFire(state)
 	               ? 4
 	               : (e1->type->two_handed ? 3
@@ -1310,7 +1311,7 @@ StateRef<AEquipmentType> Agent::getDominantItemInHands(GameState &state,
 	                                              : 0)));
 	int e2Priority =
 	    e2->isFiring()
-	        ? 1440 - e2->weapon_fire_ticks_remaining
+	        ? TICKS_PER_SECOND * 10 - e2->weapon_fire_ticks_remaining
 	        : (e2->canFire(state)
 	               ? 4
 	               : (e2->type->two_handed ? 3

@@ -57,8 +57,11 @@ static const int FUEL_SPENT_PER_SECOND = 144;
 // How much fuel spend is required to consume one unit of fuel
 static const int FUEL_SPENT_PER_UNIT = 40000;
 // Correction factor for turning slowdown mechanic, purely found by data analysis, could not
-// establish any logical conclusion
-static const float TURNING_SLOW_DOWN_CORRECTION = 38.893f;
+// establish any logical conclusion. It multiplies angularVelocity, which is proportional to
+// 1/TICK_SCALE, so the 38.893f itself was found at TICK_SCALE==36; expressed relative to
+// TICK_SCALE so it stays proportionally correct if that ever changes (numerically unchanged
+// while TICK_SCALE stays 36).
+static const float TURNING_SLOW_DOWN_CORRECTION = 38.893f * (float)TICK_SCALE / 36.0f;
 
 class Image;
 class TileObjectVehicle;

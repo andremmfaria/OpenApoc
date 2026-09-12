@@ -2173,6 +2173,7 @@ bool BattleUnitMission::advanceAlongPath(GameState &state, BattleUnit &u, Vec3<f
 	{
 		// Next tile became impassable, pick a new path
 		currentPlannedPath.clear();
+		// Retry next tick; not TPS-derived since it is already the minimum possible delay.
 		u.addMission(state, BattleUnitMission::snooze(u, 1));
 		u.addMission(state, Type::RestartNextMission);
 		return false;
@@ -2327,16 +2328,18 @@ bool BattleUnitMission::advanceAlongPath(GameState &state, BattleUnit &u, Vec3<f
 	}
 	if (needSnooze)
 	{
-		// Snooze for a moment and try again
-		u.addMission(state, snooze(u, 16));
+		// Snooze for a moment and try again (1/9s at 144 TPS, the bare tick count this
+		// replaces)
+		u.addMission(state, snooze(u, TICKS_PER_SECOND / 9));
 		return false;
 	}
 
 	// Is there a door?
 	if (closedDoorInTheWay)
 	{
-		// Snooze for a moment and try again
-		u.addMission(state, snooze(u, 8));
+		// Snooze for a moment and try again (1/18s at 144 TPS, the bare tick count this
+		// replaces)
+		u.addMission(state, snooze(u, TICKS_PER_SECOND / 18));
 		return false;
 	}
 

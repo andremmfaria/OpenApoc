@@ -887,9 +887,9 @@ void AEquipment::throwItem(GameState &state, Vec3<int> targetPosition, float vel
 	}
 	bi->velocity = (norm * velocityXY + Vec3<float>{0.0f, 0.0f, velocityZ}) * VELOCITY_SCALE_BATTLE;
 	bi->falling = true;
-	// 36 / (velocity length) = enough ticks to pass 1 whole tile
+	// TICK_SCALE / (velocity length) = enough ticks to pass 1 whole tile
 	bi->ownerInvulnerableTicks =
-	    (int)ceilf(36.0f / glm::length(bi->velocity / VELOCITY_SCALE_BATTLE)) + 1;
+	    (int)ceilf((float)TICK_SCALE / glm::length(bi->velocity / VELOCITY_SCALE_BATTLE)) + 1;
 }
 
 StateRef<AEquipmentType> AEquipment::getPayloadType() const

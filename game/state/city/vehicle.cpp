@@ -570,11 +570,14 @@ class FlyingVehicleMover : public VehicleMover
 					{
 						Vec3<float> vectorToGoal =
 						    (vehicle.goalPosition - vehicle.position) * VELOCITY_SCALE_CITY;
+						// The -5/2 tick slack and floor were tuned at TICK_SCALE==36;
+						// expressed relative to TICK_SCALE so they stay proportional if it
+						// ever changes (both are unchanged numerically while it stays 36).
 						int ticksToMove =
 						    std::max(floorf(glm::length(vectorToGoal) /
 						                    glm::length(vehicle.velocity) * (float)TICK_SCALE) -
-						                 5.0f,
-						             2.0f);
+						                 5.0f * (float)TICK_SCALE / 36.0f,
+						             2.0f * (float)TICK_SCALE / 36.0f);
 						if (ticksToMove < vehicle.ticksToTurn)
 						{
 							vehicle.velocity *=
@@ -3826,8 +3829,11 @@ void Vehicle::equipDefaultEquipment(GameState &state)
 
 void Vehicle::nextFrame(int ticks)
 {
+	// ~14.4 sprite-animation frames per second: TICKS_PER_SECOND / 14.4, i.e. * 5 / 72 to
+	// stay exact integer math (144 * 5 / 72 == 10 at 144 TPS, the value this replaces).
+	constexpr unsigned VEHICLE_ANIMATION_TICKS_PER_FRAME = TICKS_PER_SECOND * 5 / 72;
 	animationDelay += ticks;
-	if (animationDelay > 10)
+	if (animationDelay > (int)VEHICLE_ANIMATION_TICKS_PER_FRAME)
 	{
 		animationDelay = 0;
 		animationFrame++;

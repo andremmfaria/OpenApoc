@@ -184,7 +184,8 @@ bool TileMap::checkThrowTrajectory(const sp<TileObject> thrower, Vec3<float> sta
 	    (glm::normalize(targetVectorXY) * velocityXY + Vec3<float>{0.0, 0.0, velocityZ}) *
 	    VELOCITY_SCALE_BATTLE;
 	int collisionIgnoredTicks =
-	    thrower ? 0 : (int)ceilf(36.0f / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
+	    thrower ? 0
+	            : (int)ceilf((float)TICK_SCALE / glm::length(velocity / VELOCITY_SCALE_BATTLE)) + 1;
 	Collision c;
 	do
 	{
