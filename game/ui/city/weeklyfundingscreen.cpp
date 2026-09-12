@@ -146,7 +146,7 @@ void WeeklyFundingScreen::eventOccurred(Event *e)
 	}
 }
 
-void WeeklyFundingScreen::update() { menuform->update(); }
+void WeeklyFundingScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void WeeklyFundingScreen::render()
 {

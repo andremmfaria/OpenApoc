@@ -163,7 +163,7 @@ void AlertScreen::eventOccurred(Event *e)
 	}
 }
 
-void AlertScreen::update() { menuform->update(); }
+void AlertScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void AlertScreen::render()
 {

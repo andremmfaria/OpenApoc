@@ -374,7 +374,7 @@ void ResearchSelect::eventOccurred(Event *e)
 	}
 }
 
-void ResearchSelect::update() { form->update(); }
+void ResearchSelect::update(const StageFrame &frame) { form->update(); }
 
 void ResearchSelect::render()
 {

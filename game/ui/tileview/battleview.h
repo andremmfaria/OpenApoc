@@ -236,7 +236,7 @@ class BattleView : public BattleTileView
 	void begin() override;
 	void refresh();
 	void resume() override;
-	void update() override;
+	void update(const StageFrame &frame) override;
 	void render() override;
 	void finish() override;
 	void eventOccurred(Event *e) override;

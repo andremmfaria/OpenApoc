@@ -89,7 +89,7 @@ void OptionsMenu::eventOccurred(Event *e)
 	}
 }
 
-void OptionsMenu::update() { menuform->update(); }
+void OptionsMenu::update(const StageFrame &frame) { menuform->update(); }
 
 void OptionsMenu::render() { menuform->render(); }
 

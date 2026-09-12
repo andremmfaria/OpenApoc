@@ -75,7 +75,7 @@ void DiplomaticTreatyScreen::eventOccurred(Event *e)
 	}
 }
 
-void DiplomaticTreatyScreen::update() { menuform->update(); }
+void DiplomaticTreatyScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void DiplomaticTreatyScreen::render()
 {

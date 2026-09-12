@@ -225,7 +225,7 @@ void ScoreScreen::eventOccurred(Event *e)
 	}
 }
 
-void ScoreScreen::update() { menuform->update(); }
+void ScoreScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void ScoreScreen::render()
 {

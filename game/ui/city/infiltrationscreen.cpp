@@ -112,7 +112,7 @@ void InfiltrationScreen::begin()
 	this->reset_shown_orgs();
 	this->updateOrgs();
 	this->update_view();
-	this->update();
+	this->update({0});
 }
 
 void InfiltrationScreen::pause() {}
@@ -288,7 +288,7 @@ void InfiltrationScreen::update_view()
 	graph->setImage(newGraphImage);
 }
 
-void InfiltrationScreen::update() { menuform->update(); }
+void InfiltrationScreen::update(const StageFrame &frame) { menuform->update(); }
 
 void InfiltrationScreen::render()
 {

@@ -76,7 +76,7 @@ void VideoScreen::eventOccurred(Event *e)
 	}
 }
 
-void VideoScreen::update()
+void VideoScreen::update(const StageFrame &frame)
 {
 	if (!this->current_frame)
 	{

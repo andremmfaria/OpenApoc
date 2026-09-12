@@ -72,7 +72,7 @@ void BattleDebriefing::eventOccurred(Event *e)
 	}
 }
 
-void BattleDebriefing::update() { menuform->update(); }
+void BattleDebriefing::update(const StageFrame &frame) { menuform->update(); }
 
 void BattleDebriefing::render() { menuform->render(); }
 

@@ -207,7 +207,7 @@ void UfopaediaCategoryView::eventOccurred(Event *e)
 	}
 }
 
-void UfopaediaCategoryView::update() { menuform->update(); }
+void UfopaediaCategoryView::update(const StageFrame &frame) { menuform->update(); }
 
 void UfopaediaCategoryView::render()
 {

@@ -169,7 +169,7 @@ void FormPreview::eventOccurred(Event *e)
 	}
 }
 
-void FormPreview::update()
+void FormPreview::update(const StageFrame &frame)
 {
 	previewselector->update();
 	if (propertyeditor != nullptr)

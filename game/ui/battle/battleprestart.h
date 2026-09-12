@@ -67,7 +67,7 @@ class BattlePreStart : public Stage
 	void resume() override;
 	void finish() override;
 	void eventOccurred(Event *e) override;
-	void update() override;
+	void update(const StageFrame &frame) override;
 	void render() override;
 	bool isTransition() override;
 };

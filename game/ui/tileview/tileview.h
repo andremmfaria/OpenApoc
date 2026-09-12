@@ -167,7 +167,7 @@ class TileView : public Stage, public TileTransform
 	void pause() override;
 	void resume() override;
 	void finish() override;
-	void update() override;
+	void update(const StageFrame &frame) override;
 	void eventOccurred(Event *e) override;
 	bool isTransition() override;
 

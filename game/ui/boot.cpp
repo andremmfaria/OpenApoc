@@ -28,7 +28,7 @@ void BootUp::finish() {}
 
 void BootUp::eventOccurred(Event *e) { std::ignore = e; }
 
-void BootUp::update()
+void BootUp::update(const StageFrame &frame)
 {
 	bool skipIntro = Options::skipIntroOption.get();
 	// The first forms instance causes it to get loaded

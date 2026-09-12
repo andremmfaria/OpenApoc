@@ -326,7 +326,7 @@ void ResearchScreen::eventOccurred(Event *e)
 	}
 }
 
-void ResearchScreen::update() { form->update(); }
+void ResearchScreen::update(const StageFrame &frame) { form->update(); }
 
 void ResearchScreen::render()
 {

@@ -237,7 +237,7 @@ void CreditsMenu::eventOccurred(Event *e)
 	}
 }
 
-void CreditsMenu::update() { menuform->update(); }
+void CreditsMenu::update(const StageFrame &frame) { menuform->update(); }
 
 void CreditsMenu::render()
 {

@@ -626,7 +626,7 @@ void MoreOptions::eventOccurred(Event *e)
 	}
 }
 
-void MoreOptions::update() { menuform->update(); }
+void MoreOptions::update(const StageFrame &frame) { menuform->update(); }
 
 void MoreOptions::render()
 {

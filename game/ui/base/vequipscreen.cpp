@@ -400,7 +400,7 @@ void VEquipScreen::eventOccurred(Event *e)
 	}
 }
 
-void VEquipScreen::update() { form->update(); }
+void VEquipScreen::update(const StageFrame &frame) { form->update(); }
 
 void VEquipScreen::render()
 {
