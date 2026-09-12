@@ -213,7 +213,8 @@ ScenarioResult runScenario(sp<GameState> state, int numRescuers, int numVictims,
 				break;
 			}
 			auto before = state->gameTime.getTicks();
-			state->updateTurbo();
+			// Turbo is no longer a discrete GameState step, so drive the coarse block directly.
+			state->update(5 * TICKS_PER_MINUTE);
 			elapsed += state->gameTime.getTicks() - before;
 			result.dispatchCalls++;
 		}
@@ -283,7 +284,7 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 	auto turboResult = runScenario(turboState, numRescuers, numVictims, true);
-	LogWarning("turbo: {0} updateTurbo() calls, {1} ticks elapsed, recovered={2} "
+	LogWarning("turbo: {0} turbo steps, {1} ticks elapsed, recovered={2} "
 	           "selfDestructed={3} unresolved={4} aborted={5}",
 	           turboResult.dispatchCalls, turboResult.elapsedTicks, turboResult.recovered,
 	           turboResult.selfDestructed, turboResult.unresolved, turboResult.aborted);
