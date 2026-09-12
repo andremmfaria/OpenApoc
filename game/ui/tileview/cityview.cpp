@@ -1928,6 +1928,9 @@ void CityView::resume()
 {
 	vanillaControls = !config().getBool("OpenApoc.NewFeature.OpenApocCityControls");
 	state->skipTurboCalculations = config().getBool("OpenApoc.NewFeature.SkipTurboMovement");
+	// The legacy-speeds option may have been toggled on the options screen that covered
+	// this view, so re-derive the accumulator rate for the current tier.
+	applyUpdateSpeed(this->updateSpeed);
 	// Hygiene, not a burst fix: a resumed view already gets an ordinary frame
 	// delta, never a backlog, since StageFrame::elapsedRealUs is measured globally and
 	// not per-stage. This just makes the first post-resume tick land at a predictable
