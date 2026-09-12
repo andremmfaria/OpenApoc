@@ -1,5 +1,6 @@
 #pragma once
 
+#include "framework/tickaccumulator.h"
 #include "game/state/stateobject.h"
 #include "game/ui/tileview/citytileview.h"
 #include "library/sp.h"
@@ -56,6 +57,8 @@ class CityView : public CityTileView
 	std::vector<sp<GraphicButton>> miniViews;
 	CityUpdateSpeed updateSpeed;
 	CityUpdateSpeed lastSpeed;
+	// Converts real time into game ticks for the current updateSpeed; see setUpdateSpeed().
+	TickAccumulator tickAccumulator;
 
 	sp<GameState> state;
 

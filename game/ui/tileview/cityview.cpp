@@ -31,6 +31,7 @@
 #include "game/state/city/vequipment.h"
 #include "game/state/gameevent.h"
 #include "game/state/gamestate.h"
+#include "game/state/gametime.h"
 #include "game/state/message.h"
 #include "game/state/rules/aequipmenttype.h"
 #include "game/state/rules/battle/battlemap.h"
@@ -200,6 +201,44 @@ sp<Facility> findCurrentResearchFacility(sp<GameState> state, AgentType::Role ro
 }
 
 constexpr size_t NUM_TABS = 8;
+
+// City tiers are the original's measured rates (plans/997-implementation-plan.md SS3.2):
+// Speed1..Speed4 = 0.505736 / 1.011473 / 2.022946 / 3.034419 game-seconds per real
+// second, i.e. the original's own speed_value literals {1,2,4,6} over its 36-per-second
+// accumulator. Speed5 (turbo) bypasses the accumulator entirely (GameState::updateTurbo
+// is still frame-coupled; that is out of scope here, see the branch's implementation
+// notes) so its rate here is never actually consumed.
+VanillaTickRate cityTickRate(CityUpdateSpeed speed)
+{
+	switch (speed)
+	{
+		case CityUpdateSpeed::Pause:
+			return vanillaTickRate(0);
+		case CityUpdateSpeed::Speed1:
+			return vanillaTickRate(1);
+		case CityUpdateSpeed::Speed2:
+			return vanillaTickRate(2);
+		case CityUpdateSpeed::Speed3:
+			return vanillaTickRate(4);
+		case CityUpdateSpeed::Speed4:
+			return vanillaTickRate(6);
+		case CityUpdateSpeed::Speed5:
+			return vanillaTickRate(0);
+	}
+	return vanillaTickRate(0);
+}
+
+TickAccumulator makeCityTickAccumulator(CityUpdateSpeed speed)
+{
+	auto rate = cityTickRate(speed);
+	auto maxTicks =
+	    TickAccumulator::ticksInOneClamp(rate.numerator, rate.denominator, STAGE_FRAME_CLAMP_US);
+	return TickAccumulator(rate.numerator, rate.denominator, STAGE_FRAME_CLAMP_US, maxTicks);
+}
+
+// Delivery stays chunked at today's granularity (SS3.3): big single-call jumps tunnel
+// projectile collision segments and let a call span more than one GameTime boundary.
+constexpr unsigned int CITY_TICK_CHUNK = 6;
 
 } // anonymous namespace
 
@@ -1190,8 +1229,9 @@ CityView::CityView(sp<GameState> state)
                    state->current_city->cityViewScreenCenter, *state),
       baseForm(ui().getForm("city/city")), overlayTab(ui().getForm("city/overlay")),
       debugOverlay(ui().getForm("city/debugoverlay_city")), updateSpeed(CityUpdateSpeed::Speed1),
-      lastSpeed(CityUpdateSpeed::Pause), state(state), followVehicle(false),
-      selectionState(CitySelectionState::Normal)
+      lastSpeed(CityUpdateSpeed::Pause),
+      tickAccumulator(makeCityTickAccumulator(CityUpdateSpeed::Speed1)), state(state),
+      followVehicle(false), selectionState(CitySelectionState::Normal)
 {
 	weaponType.resize(3);
 	weaponDisabled.resize(3, false);
@@ -1845,6 +1885,11 @@ void CityView::resume()
 {
 	vanillaControls = !config().getBool("OpenApoc.NewFeature.OpenApocCityControls");
 	state->skipTurboCalculations = config().getBool("OpenApoc.NewFeature.SkipTurboMovement");
+	// Hygiene, not a burst fix (SS3.4): a resumed view already gets an ordinary frame
+	// delta, never a backlog, since StageFrame::elapsedRealUs is measured globally and
+	// not per-stage. This just makes the first post-resume tick land at a predictable
+	// phase.
+	tickAccumulator.reset();
 	CityTileView::resume();
 	modifierLAlt = false;
 	modifierLCtrl = false;
@@ -2067,49 +2112,28 @@ void CityView::render()
 
 void CityView::update(const StageFrame &frame)
 {
-	unsigned int ticks = 0;
 	int day = state->gameTime.getDay();
 	bool turbo = false;
-	switch (this->updateSpeed)
+
+	if (this->updateSpeed == CityUpdateSpeed::Speed5)
 	{
-		case CityUpdateSpeed::Pause:
-			ticks = 0;
-			break;
-		/* POSSIBLE FIXME: 'vanilla' apoc appears to implement Speed1 as 1/2 speed - that is
-		 * only
-		 * every other call calls the update loop, meaning that the later update tick counts are
-		 * halved as well.
-		 * This effectively means that all openapoc tick counts count for 1/2 the value of
-		 * vanilla
-		 * apoc ticks */
-		case CityUpdateSpeed::Speed1:
-			ticks = 1;
-			break;
-		case CityUpdateSpeed::Speed2:
-			ticks = 2;
-			break;
-		case CityUpdateSpeed::Speed3:
-			ticks = 4;
-			break;
-		case CityUpdateSpeed::Speed4:
-			ticks = 6;
-			break;
-		case CityUpdateSpeed::Speed5:
-			if (!this->state->canTurbo())
-			{
-				setUpdateSpeed(CityUpdateSpeed::Speed1);
-				ticks = 1;
-			}
-			else
-			{
-				turbo = true;
-			}
-			break;
+		if (!this->state->canTurbo())
+		{
+			setUpdateSpeed(CityUpdateSpeed::Speed1);
+		}
+		else
+		{
+			turbo = true;
+		}
 	}
 	baseForm->findControl("BUTTON_SPEED5")->Enabled = this->state->canTurbo();
 
 	if (turbo)
 	{
+		// Turbo still advances once per rendered frame rather than by real time; that
+		// frame-rate coupling is real but out of scope here (see
+		// GameState::updateTurbo's own notes) - fixing it requires the boundary-count
+		// fix for GameTime::addTicks, which is separate follow-up work.
 		this->state->updateTurbo();
 		if (!this->state->canTurbo())
 		{
@@ -2118,9 +2142,13 @@ void CityView::update(const StageFrame &frame)
 	}
 	else
 	{
+		uint64_t ticks = tickAccumulator.advance(frame.elapsedRealUs);
 		while (ticks > 0)
 		{
-			int ticksPerUpdate = UPDATE_EVERY_TICK ? 1 : ticks;
+			unsigned int ticksPerUpdate =
+			    UPDATE_EVERY_TICK
+			        ? 1u
+			        : static_cast<unsigned int>(std::min<uint64_t>(ticks, CITY_TICK_CHUNK));
 			state->update(ticksPerUpdate);
 			ticks -= ticksPerUpdate;
 		}
@@ -4565,6 +4593,16 @@ void CityView::setUpdateSpeed(CityUpdateSpeed updateSpeed)
 		return;
 	}
 	this->lastSpeed = this->updateSpeed;
+	auto rate = cityTickRate(updateSpeed);
+	tickAccumulator.setRate(rate.numerator, rate.denominator);
+	tickAccumulator.setMaxTicksPerAdvance(
+	    TickAccumulator::ticksInOneClamp(rate.numerator, rate.denominator, STAGE_FRAME_CLAMP_US));
+	if (updateSpeed == CityUpdateSpeed::Pause)
+	{
+		// A covered/paused view must accrue nothing (SS3.4); zero any fraction left over
+		// from whatever speed was active before Pause was hit.
+		tickAccumulator.reset();
+	}
 	switch (updateSpeed)
 	{
 		case CityUpdateSpeed::Pause:
