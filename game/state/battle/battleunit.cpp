@@ -3604,7 +3604,14 @@ void BattleUnit::updateAttacking(GameState &state, unsigned int ticks)
 		// Decrement timer for residual aiming
 		if (residual_aiming_ticks_remaining > 0)
 		{
-			residual_aiming_ticks_remaining -= ticks;
+			if (residual_aiming_ticks_remaining > ticks)
+			{
+				residual_aiming_ticks_remaining -= ticks;
+			}
+			else
+			{
+				residual_aiming_ticks_remaining = 0;
+			}
 		}
 		else if (canHandStateChange(HandState::AtEase))
 		{
