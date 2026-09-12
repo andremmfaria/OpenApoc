@@ -156,8 +156,12 @@ void Building::updateDetection(GameState &state, unsigned int ticks)
 		detect(state, state.firstDetection || owner == state.getPlayer());
 	}
 }
-void Building::updateCargo(GameState &state)
+void Building::updateCargo(GameState &state, unsigned int nSeconds)
 {
+	if (nSeconds == 0)
+	{
+		return;
+	}
 	StateRef<Building> thisRef = {&state, getId(state, shared_from_this())};
 
 	// Step 01: Consume cargo with destination = this or zero count or hostile destination
