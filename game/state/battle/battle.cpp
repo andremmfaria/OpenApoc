@@ -1642,7 +1642,7 @@ void Battle::update(GameState &state, unsigned int ticks)
 
 	if (missionEndTimer > 0)
 	{
-		missionEndTimer++;
+		missionEndTimer += ticks;
 		ticksWithoutAction = 0;
 		for (auto &p : participants)
 		{
@@ -1653,7 +1653,7 @@ void Battle::update(GameState &state, unsigned int ticks)
 	{
 		case Mode::TurnBased:
 		{
-			updateTB(state);
+			updateTB(state, ticks);
 			break;
 		}
 		case Mode::RealTime:
@@ -1716,12 +1716,12 @@ void Battle::update(GameState &state, unsigned int ticks)
 	updatePathfinding(state, ticks);
 }
 
-void Battle::updateTB(GameState &state)
+void Battle::updateTB(GameState &state, unsigned int ticks)
 {
-	ticksWithoutAction++;
+	ticksWithoutAction += ticks;
 	for (auto &p : participants)
 	{
-		ticksWithoutSeenAction[p]++;
+		ticksWithoutSeenAction[p] += ticks;
 	}
 	// Interrupt for lowmorales
 	if (!lowMoraleProcessed && interruptQueue.empty() && interruptUnits.empty())
