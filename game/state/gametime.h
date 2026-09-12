@@ -14,15 +14,42 @@ static constexpr unsigned TICKS_PER_HOUR = TICKS_PER_MINUTE * 60;
 static constexpr unsigned TICKS_PER_DAY = TICKS_PER_HOUR * 24;
 
 /*
+    Tick constant vocabulary.
+
+    There is exactly one game clock, TICKS_PER_SECOND, and two named converters that must
+    not be confused with each other or used interchangeably:
+
+    - VANILLA_TO_TICKS converts a *vanilla data unit* (a value stored in, or derived from,
+      the original's 36-per-second fixed-point base) into OpenApoc ticks. Use it for
+      doodad lifetimes/frame timings, hazard/explosion timers, and extractor-baked fields
+      such as fire_delay - anything whose source value is expressed in vanilla units.
+    - TICKS_PER_VANILLA_FRAME names the *duration of one vanilla frame*, in ticks. It is
+      numerically identical to VANILLA_TO_TICKS today (both are presently 4), but the two
+      answer different questions - "how many ticks is this vanilla-unit value worth?" vs.
+      "how many ticks is one vanilla frame long?" - and could diverge if either side of
+      that relationship is ever retuned independently. Use it for one-vanilla-frame delays
+      (map part / item collapse, explosion expansion ticks).
+
+    TICKS_MULTIPLIER survives only as the base ratio TICKS_PER_SECOND is built from, above;
+    nothing else should reference it directly.
+
+    TICK_SCALE, defined further down, is a separate physics-only divisor. It is presently
+    36 as well, but that is a coincidence of TICKS_PER_SECOND's current value, not a
+    relationship to preserve - see its own doc comment.
+*/
+static constexpr unsigned VANILLA_TO_TICKS = TICKS_PER_SECOND / VANILLA_TICKS_PER_SECOND;
+static constexpr unsigned TICKS_PER_VANILLA_FRAME = TICKS_MULTIPLIER;
+
+/*
     The original game's speed constant, at OpenApoc's tick resolution.
 
     The original accumulates `speed_value` once per its own real-time frame (a busy-wait
     pinned to 1193182 / 65536 Hz, ~18.206512 Hz) into a fixed-point counter where 36 units
     make one game second. Folding that /36 into
-    TICKS_MULTIPLIER's ticks-per-vanilla-unit conversion gives an exact ticks-per-real-
+    VANILLA_TO_TICKS's ticks-per-vanilla-unit conversion gives an exact ticks-per-real-
     second rational:
 
-        ticksPerSecond = (ratioNumerator / ratioDenominator) * TICKS_MULTIPLIER
+        ticksPerSecond = (ratioNumerator / ratioDenominator) * VANILLA_TO_TICKS
                          * 1193182 / 65536
 
     `ratioDenominator` exists so a non-integer ratio (battle's provisional 0.5x tier)
@@ -37,9 +64,34 @@ struct VanillaTickRate
 
 constexpr VanillaTickRate vanillaTickRate(uint64_t ratioNumerator, uint64_t ratioDenominator = 1)
 {
-	return VanillaTickRate{ratioNumerator * static_cast<uint64_t>(TICKS_MULTIPLIER) * 1193182ull,
+	return VanillaTickRate{ratioNumerator * static_cast<uint64_t>(VANILLA_TO_TICKS) * 1193182ull,
 	                       ratioDenominator * 65536ull};
 }
+
+/*
+    TICK_SCALE - the physics-only divisor used by per-tick velocity/movement math.
+
+    Vanilla velocity data was calibrated such that real-world speed = 4 * v / velocityScale
+    per second. Units check (game/state/shared/projectile.cpp): displacement per tick is
+    (ticks / TICK_SCALE) * v / velocityScale, and ticks per real second is TICKS_PER_SECOND,
+    so real speed = (TICKS_PER_SECOND / TICK_SCALE) * v / velocityScale. The ratio
+    TICKS_PER_SECOND / TICK_SCALE = 4 is what must stay invariant - not TICK_SCALE's
+    absolute value - so TICK_SCALE must scale with TICKS_PER_SECOND (144 -> 36, 180 -> 45).
+    Freezing it at VANILLA_TICKS_PER_SECOND (36) would silently speed up all physics 25% at
+    180 TPS.
+
+    The /4 is a frozen vanilla speed-calibration factor. It is not VANILLA_TO_TICKS/
+    TICKS_PER_VANILLA_FRAME above (those convert vanilla *data* units; this calibrates
+    vanilla *velocity* data specifically), and its equality with VANILLA_TICKS_PER_SECOND's
+    factor-of-36 relationship to TICKS_PER_SECOND=144 is coincidental, not causal. The
+    original binary's decompilation established its clock rate (18.206512 Hz, 36 sub-second
+    units per game second), not its velocity calibration - no vanilla projectile or movement
+    code has been decompiled - so that work neither confirms nor refutes this /4 factor.
+*/
+static constexpr unsigned TICK_SCALE = TICKS_PER_SECOND / 4;
+static_assert(TICKS_PER_SECOND / TICK_SCALE == 4,
+              "TICK_SCALE must stay proportional to TICKS_PER_SECOND (ratio of 4) - see the "
+              "doc comment above");
 
 class GameTime
 {
