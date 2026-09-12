@@ -27,7 +27,7 @@ static time_duration ticksToPosix(int64_t ticks)
 	return time_duration(0, 0, 0, tickTotal);
 }
 
-GameTime::GameTime(uint64_t ticks) : ticks(ticks){};
+GameTime::GameTime(uint64_t ticks) : ticks(ticks) {};
 
 static boost::posix_time::ptime getPtime(uint64_t ticks)
 {
@@ -219,6 +219,12 @@ bool GameTime::dayPassed() const { return dayPassedFlag; }
 
 bool GameTime::weekPassed() const { return weekPassedFlag; }
 
+uint64_t GameTime::secondsElapsed() const { return secondsElapsedCount; }
+uint64_t GameTime::fiveMinutePeriodsElapsed() const { return fiveMinutesElapsedCount; }
+uint64_t GameTime::hoursElapsed() const { return hoursElapsedCount; }
+uint64_t GameTime::daysElapsed() const { return daysElapsedCount; }
+uint64_t GameTime::weeksElapsed() const { return weeksElapsedCount; }
+
 void GameTime::clearFlags()
 {
 	secondPassedFlag = false;
@@ -226,40 +232,76 @@ void GameTime::clearFlags()
 	hourPassedFlag = false;
 	dayPassedFlag = false;
 	weekPassedFlag = false;
+
+	secondsElapsedCount = 0;
+	fiveMinutesElapsedCount = 0;
+	hoursElapsedCount = 0;
+	daysElapsedCount = 0;
+	weeksElapsedCount = 0;
 }
 
-void GameTime::addTicks(uint64_t ticks)
+void GameTime::addTicks(uint64_t ticksToAdd)
 {
-	this->ticks += ticks;
-	uint64_t secondTicks = this->ticks % (TICKS_PER_SECOND);
-	uint64_t fiveMinutesTicks = this->ticks % (5 * TICKS_PER_MINUTE);
-	if (fiveMinutesTicks < ticks)
+	uint64_t oldTicks = this->ticks;
+	this->ticks += ticksToAdd;
+	uint64_t newTicks = this->ticks;
+
+	// Each cadence is counted independently by dividing the absolute tick value, rather
+	// than by inspecting only the tail of this one call the way the old modulo check did.
+	// That old check fired each flag at most once per call: a call spanning many seconds
+	// (a turbo tick, a cheat-menu time skip) only ran the boundary once instead of once
+	// per second actually crossed. Every cadence here is an exact multiple of the one
+	// above it (TICKS_PER_HOUR = 12 * 5*TICKS_PER_MINUTE, etc.), so counting them
+	// independently reproduces the old nested-if result exactly when at most one
+	// boundary of each kind is crossed, and additionally gets the count right when more
+	// than one is.
+	uint64_t newSeconds = newTicks / TICKS_PER_SECOND - oldTicks / TICKS_PER_SECOND;
+	uint64_t newFiveMinutePeriods =
+	    newTicks / (5 * TICKS_PER_MINUTE) - oldTicks / (5 * TICKS_PER_MINUTE);
+	uint64_t newHours = newTicks / TICKS_PER_HOUR - oldTicks / TICKS_PER_HOUR;
+	uint64_t oldDay = oldTicks / TICKS_PER_DAY;
+	uint64_t newDay = newTicks / TICKS_PER_DAY;
+	uint64_t newDays = newDay - oldDay;
+
+	// Week rollover isn't an even divisor of TICKS_PER_DAY (the game starts on a
+	// Tuesday, so the week rolls on day index 6 mod 7), so it can't be counted by a
+	// single division like the cadences above. newDays is always small in practice
+	// (bounded by the largest single time-skip the game offers, one week), so walking
+	// the elapsed day indices is cheap and exact.
+	uint64_t newWeeks = 0;
+	for (uint64_t day = oldDay + 1; day <= newDay; day++)
 	{
-		secondPassedFlag = true;
-		fiveMinutesPassedFlag = true;
-		uint64_t hourTicks = this->ticks % TICKS_PER_HOUR;
-		if (hourTicks < ticks)
+		if (day % 7 == 6)
 		{
-			hourPassedFlag = true;
-			uint64_t dayTicks = this->ticks % TICKS_PER_DAY;
-			if (dayTicks < ticks)
-			{
-				uint64_t days = this->ticks / TICKS_PER_DAY;
-				dayPassedFlag = true;
-				// game starts on Tuesday, so week rolls on day 6
-				if (days % 7 == 6)
-				{
-					weekPassedFlag = true;
-				}
-			}
+			newWeeks++;
 		}
 	}
-	else
+
+	secondsElapsedCount += newSeconds;
+	fiveMinutesElapsedCount += newFiveMinutePeriods;
+	hoursElapsedCount += newHours;
+	daysElapsedCount += newDays;
+	weeksElapsedCount += newWeeks;
+
+	if (newSeconds > 0)
 	{
-		if (secondTicks < ticks)
-		{
-			secondPassedFlag = true;
-		}
+		secondPassedFlag = true;
+	}
+	if (newFiveMinutePeriods > 0)
+	{
+		fiveMinutesPassedFlag = true;
+	}
+	if (newHours > 0)
+	{
+		hourPassedFlag = true;
+	}
+	if (newDays > 0)
+	{
+		dayPassedFlag = true;
+	}
+	if (newWeeks > 0)
+	{
+		weekPassedFlag = true;
 	}
 }
 

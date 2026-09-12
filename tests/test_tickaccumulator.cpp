@@ -305,6 +305,57 @@ static bool test_hide_display_rate_ceiling()
 	return true;
 }
 
+// SS3.5/Q9: turbo is retuned to the original's Ultra rate, 303.441874 game-seconds per
+// real second (600 * TICKS_MULTIPLIER * 1193182 / 65536 = 43,695.6 ticks/s), and like
+// every other tier this must hold regardless of the rendered frame rate.
+static bool test_turbo_rate_matches_original()
+{
+	auto rate = vanillaTickRate(600); // city Speed5 (turbo)
+	double actualTicksPerSecond =
+	    static_cast<double>(rate.numerator) / static_cast<double>(rate.denominator);
+	double expectedTicksPerSecond = 303.441874 * TICKS_PER_SECOND;
+	if (!nearlyEqual(actualTicksPerSecond, expectedTicksPerSecond, 0.01))
+	{
+		LogError("test_turbo_rate_matches_original: turbo gave {0} ticks/s, expected {1} "
+		         "(tolerance 1%)",
+		         actualTicksPerSecond, expectedTicksPerSecond);
+		return false;
+	}
+	return true;
+}
+
+static bool test_turbo_rate_fps_independent()
+{
+	auto rate = vanillaTickRate(600); // city Speed5 (turbo)
+	const uint64_t simulatedSeconds = 20;
+	const uint64_t totalUs = simulatedSeconds * 1000000ull;
+
+	double referenceRate = -1.0;
+	bool ok = true;
+	for (uint64_t fps : {30ull, 50ull, 60ull, 120ull, 144ull})
+	{
+		uint64_t frameUs = 1000000ull / fps;
+		uint64_t frames = totalUs / frameUs;
+		auto accumulator = makeUnceilinged(rate.numerator, rate.denominator, 250000);
+		uint64_t ticks = runFrames(accumulator, frameUs, frames);
+		double simulatedUs = static_cast<double>(frames * frameUs);
+		double ticksPerSecond = static_cast<double>(ticks) / (simulatedUs / 1e6);
+		if (referenceRate < 0.0)
+		{
+			referenceRate = ticksPerSecond;
+			continue;
+		}
+		if (!nearlyEqual(ticksPerSecond, referenceRate, 0.001))
+		{
+			LogError("test_turbo_rate_fps_independent: {0} FPS gave {1} ticks/s, expected "
+			         "~{2}",
+			         fps, ticksPerSecond, referenceRate);
+			ok = false;
+		}
+	}
+	return ok;
+}
+
 int main(int argc, char **argv)
 {
 	if (config().parseOptions(argc, argv))
@@ -322,6 +373,8 @@ int main(int argc, char **argv)
 	allPassed &= test_covered_view_then_resume_is_one_ordinary_frame();
 	allPassed &= test_ticks_in_one_clamp_matches_hand_computed_values();
 	allPassed &= test_hide_display_rate_ceiling();
+	allPassed &= test_turbo_rate_matches_original();
+	allPassed &= test_turbo_rate_fps_independent();
 
 	if (!allPassed)
 	{
