@@ -451,6 +451,13 @@ bool GameState::loadGame(const UString &path)
 	return deserialize(archive.get());
 }
 
+// Name of the save-format schema version node under the "gamestate" root. Written unconditionally
+// by serialize() and read unconditionally by deserialize(), independent of the per-member diffing
+// the rest of GameState's serialization does against a reference state - a member equal to its
+// default value would otherwise be silently omitted, which is not acceptable for a version field
+// that must always be present so old saves can be told apart from new ones.
+static const char *const SAVE_FORMAT_VERSION_NODE = "save_format_version";
+
 bool GameState::serialize(SerializationArchive *archive) const
 {
 	try
@@ -458,6 +465,7 @@ bool GameState::serialize(SerializationArchive *archive) const
 		GameState defaultState;
 		auto root = archive->newRoot("", "gamestate");
 		serializeOut(root, *this, defaultState);
+		root->addNode(SAVE_FORMAT_VERSION_NODE)->setValueUInt(CURRENT_SAVE_FORMAT_VERSION);
 	}
 	catch (SerializationException &e)
 	{
@@ -473,6 +481,7 @@ bool GameState::serialize(SerializationArchive *archive, const GameState &refere
 	{
 		auto root = archive->newRoot("", "gamestate");
 		serializeOut(root, *this, reference);
+		root->addNode(SAVE_FORMAT_VERSION_NODE)->setValueUInt(CURRENT_SAVE_FORMAT_VERSION);
 	}
 	catch (SerializationException &e)
 	{
@@ -486,7 +495,18 @@ bool GameState::deserialize(SerializationArchive *archive)
 {
 	try
 	{
-		serializeIn(this, archive->getRoot("", "gamestate"), *this);
+		auto root = archive->getRoot("", "gamestate");
+		unsigned int saveFormatVersion = 0;
+		if (root)
+		{
+			auto versionNode = root->getNodeOpt(SAVE_FORMAT_VERSION_NODE);
+			if (versionNode)
+			{
+				saveFormatVersion = versionNode->getValueUInt();
+			}
+		}
+		serializeIn(this, root, *this);
+		migrateSaveFormat(saveFormatVersion);
 	}
 	catch (SerializationException &e)
 	{
@@ -494,6 +514,35 @@ bool GameState::deserialize(SerializationArchive *archive)
 		return false;
 	}
 	return true;
+}
+
+void GameState::migrateSaveFormat(unsigned int fromVersion)
+{
+	// Migrations are chained oldest-to-newest so a save several versions behind is walked forward
+	// one step at a time. Each step should be idempotent-looking (guarded by the version it
+	// upgrades from) so this function can be re-read top to bottom as the change history.
+	//
+	// v0 -> v1: no-op. Version 0 covers every save ever written before this field existed, since
+	// no released version wrote one. Nothing about tick/timing representation has changed since,
+	// so there is nothing to transform yet.
+	//
+	// A future migration that changes the game's tick rate (or anything else that redefines what
+	// a stored tick count means) would need to add a step here that rescales, across the whole
+	// state:
+	//   - absolute tick timestamps (e.g. gameTime/gameTimeBeforeBattle, nextInvasion,
+	//     expirationDate-style fields, per-event timestamps, per-unit "ticks available/last
+	//     think" fields)
+	//   - countdown/accumulator members (the ticksUntil*/ticksAccumulated*-style fields
+	//     throughout battle and city state)
+	//   - animation-frame counters (only if the frame-to-tick ratio itself changes)
+	// and would need its own care around the baked-data version stamp (CURRENT_BAKED_DATA_VERSION
+	// / GameState::dataVersion) for values like fire_delay that are baked pre-multiplied into
+	// generated data rather than stored as plain ticks.
+	if (fromVersion >= CURRENT_SAVE_FORMAT_VERSION)
+	{
+		return;
+	}
+	// No migration steps exist yet: v0 -> v1 is a no-op (see above).
 }
 
 static bool serialize(const BattleMapTileset &tileSet, SerializationArchive *archive)
