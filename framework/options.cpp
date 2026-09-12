@@ -239,8 +239,11 @@ ConfigOptionString languageOption("Framework", "Language",
 ConfigOptionBool mouseCaptureOption("Framework", "MouseCapture",
                                     tr("Enable mouse capture for the window"), false);
 
-ConfigOptionInt targetFPS("Framework", "TargetFPS",
-                          tr("The target FPS count - affects game speed!"), 60);
+ConfigOptionInt targetFPS(
+    "Framework", "TargetFPS",
+    tr("The target frame rate - rendering smoothness only, does not affect game speed. 0 = "
+       "unlimited"),
+    60);
 ConfigOptionInt frameLimit("Framework", "FrameLimit",
                            tr("Quit after this many frames - 0 = unlimited"), 0);
 ConfigOptionInt swapInterval("Framework", "SwapInterval",
