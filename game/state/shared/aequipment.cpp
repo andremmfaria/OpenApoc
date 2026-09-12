@@ -258,7 +258,11 @@ int AEquipment::getWeight() const
 
 int AEquipment::getFireCost(WeaponAimingMode fireMode)
 {
-	return getPayloadType()->fire_delay / TICKS_MULTIPLIER / (int)fireMode;
+	// fire_delay is stored in ticks (see AEquipmentType::fire_delay); this converts back to
+	// the vanilla-unit TU cost. startFiring() below uses fire_delay directly as a tick
+	// countdown instead, which is a different quantity (a duration, not a TU cost) rather
+	// than an inconsistency to unify.
+	return getPayloadType()->fire_delay / VANILLA_TO_TICKS / (int)fireMode;
 }
 
 int AEquipment::getFireCost(WeaponAimingMode fireMode, int maxTU)

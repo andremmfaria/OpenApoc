@@ -23,7 +23,7 @@ namespace OpenApoc
 BattleExplosion::BattleExplosion(Vec3<int> position, StateRef<DamageType> damageType, int power,
                                  int depletionRate, bool damageInTheEnd,
                                  StateRef<Organisation> ownerOrg, StateRef<BattleUnit> ownerUnit)
-    : position(position), power(power), ticksUntilExpansion(TICKS_MULTIPLIER * 2),
+    : position(position), power(power), ticksUntilExpansion(TICKS_PER_VANILLA_FRAME * 2),
       locationsToExpand({{{position, {power, power}}}, {}, {}}), damageInTheEnd(damageInTheEnd),
       locationsVisited({position}), damageType(damageType), depletionRate(depletionRate),
       ownerUnit(ownerUnit), ownerOrganisation(ownerOrg)
@@ -69,7 +69,7 @@ void BattleExplosion::update(GameState &state, unsigned int ticks)
 	ticksUntilExpansion -= ticks;
 	while (ticksUntilExpansion <= 0)
 	{
-		ticksUntilExpansion += TICKS_MULTIPLIER * 2;
+		ticksUntilExpansion += TICKS_PER_VANILLA_FRAME * 2;
 		grow(state);
 		if (locationsToExpand[0].empty() && locationsToExpand[1].empty() &&
 		    locationsToExpand[2].empty())

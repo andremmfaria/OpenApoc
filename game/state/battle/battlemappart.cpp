@@ -1328,7 +1328,7 @@ bool BattleMapPart::isAlive() const
 
 void BattleMapPart::queueCollapse(unsigned additionalDelay)
 {
-	ticksUntilCollapse = TICKS_MULTIPLIER + additionalDelay;
+	ticksUntilCollapse = TICKS_PER_VANILLA_FRAME + additionalDelay;
 	providesHardSupport = false;
 }
 

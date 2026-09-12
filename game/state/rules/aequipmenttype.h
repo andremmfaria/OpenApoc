@@ -140,11 +140,11 @@ class AEquipmentType : public StateObject<AEquipmentType>
 	 * Ingame Toxigun has 4.50r/s, in file it has 8, 36/8 = 4.5
 	 * Ingame Minigun has 3.00r/s, in file it has 12, 36/12 = 3
 	 *
-	 * Fire rate expects game ticks to be 36 per second
-	 * since we have 144 ticks per second, when using this multiply it by 4 to get actual amount
-	 * of ticks required to fire
-	 *
-	 * Since playable alpha 0.1 this is already in OpenApoc ticks
+	 * The fire rate formulas above are expressed in vanilla units (36 per second); this
+	 * field is not - the extractor (tools/extractors/extract_agent_equipment.cpp) already
+	 * multiplies the raw vanilla value by VANILLA_TO_TICKS when populating it, so by the
+	 * time it reaches here it is in OpenApoc ticks (see game/state/gametime.h) and must not
+	 * be converted again.
 	 */
 	int fire_delay = 0;
 	float getRoundsPerSecond() const;
