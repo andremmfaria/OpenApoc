@@ -11,6 +11,8 @@
 #include "framework/framework.h"
 #include "framework/keycodes.h"
 #include "framework/renderer.h"
+#include "framework/uicadence.h"
+#include <algorithm>
 
 namespace OpenApoc
 {
@@ -181,7 +183,9 @@ void FormPreview::update(const StageFrame &frame)
 		displayform->update();
 	}
 
-	glowindex = (glowindex + 4) % 511;
+	// Cosmetic debug-highlight glow cadence (framework/uicadence.h) - "+4 per frame at the
+	// original 60 FPS baseline".
+	glowindex = (glowindex + std::max(1, 4 * uiCosmeticFramesPerSecond() / 60)) % 511;
 }
 
 void FormPreview::render()

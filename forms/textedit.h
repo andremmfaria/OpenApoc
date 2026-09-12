@@ -2,15 +2,21 @@
 
 #include "forms/control.h"
 #include "forms/forms_enums.h"
+#include "framework/uicadence.h"
 #include "library/sp.h"
 #include "library/strings.h"
-
-#define TEXTEDITOR_CARET_TOGGLE_TIME 5
+#include <algorithm>
 
 namespace OpenApoc
 {
 
 class BitmapFont;
+
+// Cosmetic caret-blink cadence (framework/uicadence.h): Control::update() carries no
+// elapsed-time parameter, so this stays frame-counted rather than real-time, the same
+// reasoning documented in forms/ticker.h. "5 frames at the original 60 FPS baseline"
+// (a 12 Hz toggle rate).
+inline int textEditorCaretToggleFrames() { return std::max(1, uiCosmeticFramesPerSecond() / 12); }
 
 class TextEdit : public Control
 {

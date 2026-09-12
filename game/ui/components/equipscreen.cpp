@@ -13,8 +13,6 @@ EquipmentPaperDoll::EquipmentPaperDoll(Vec2<int> position, Vec2<int> size, Vec2<
 {
 	this->Location = position;
 	this->Size = size;
-
-	this->slotHighlightIncrement = M_PI / 15.0f;
 }
 
 Vec2<int>
@@ -63,6 +61,13 @@ void EquipmentPaperDoll::update()
 	// Only draw highlight if one of the colours isn't 100% transparent
 	if (slotHighlightColours[0].a != 0 || slotHighlightColours[1].a != 0)
 	{
+		// Cosmetic glow cadence (framework/uicadence.h): 2 full pulses/second at the original
+		// 60 FPS baseline (a step of pi/15 per call, 30 calls per pulse) - computed live
+		// rather than cached, since Control::update() has no elapsed-time parameter to key a
+		// cached value's staleness off of and Options::targetFPS can change at runtime.
+		static constexpr float GLOW_CYCLES_PER_SECOND = 2.0f;
+		float slotHighlightIncrement =
+		    2.0f * static_cast<float>(M_PI) * GLOW_CYCLES_PER_SECOND / uiCosmeticFramesPerSecond();
 		this->slotHighlightCounter += slotHighlightIncrement;
 		while (this->slotHighlightCounter > 2.0f * M_PI)
 		{

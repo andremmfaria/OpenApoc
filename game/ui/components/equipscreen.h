@@ -1,6 +1,7 @@
 #pragma once
 
 #include "forms/control.h"
+#include "framework/uicadence.h"
 #include "game/state/shared/equipment.h"
 #include <array>
 #include <set>
@@ -17,7 +18,6 @@ class EquipmentPaperDoll : public Control
 	std::array<Colour, 2> slotHighlightColours;
 	// value between 0->2*PI - interpolating between the slotHighlightColours by sin(value)
 	float slotHighlightCounter = 0.0f;
-	float slotHighlightIncrement = 0.0f;
 	Colour highlightColour = {0, 0, 0, 0};
 	Colour nonHighlightColour = {0, 0, 0, 255};
 
