@@ -356,6 +356,179 @@ static bool test_turbo_rate_fps_independent()
 	return ok;
 }
 
+// Decision 3 (plans/997-summary.md): legacy speeds preserve the old ticksPerFrameAt60fps
+// multiplied by 60, not the old per-rendered-frame minting. Duplicated here from
+// cityview.cpp's legacyCityTickRate/legacyBattleTickRate (both anonymous-namespace, not
+// reachable from a unit test) the same way the tests above duplicate vanillaTickRate's
+// city/battle ratios instead of calling the view's own dispatch functions.
+uint64_t legacyRateTicksPerSecond(uint64_t ticksPerFrameAt60fps)
+{
+	return ticksPerFrameAt60fps * 60ull;
+}
+
+// Requirement 3 is the one most likely to be got wrong: legacy must be frame-rate
+// independent too, not merely present. Checked across the same 30/50/60/120/144 FPS
+// cadences as test_fps_invariance, on legacy city Speed4 (the old {0,1,2,4,6} table's
+// largest non-turbo tier).
+static bool test_legacy_city_tier_fps_independent()
+{
+	uint64_t rateNumerator = legacyRateTicksPerSecond(6); // legacy city Speed4
+	const uint64_t simulatedSeconds = 20;
+	const uint64_t totalUs = simulatedSeconds * 1000000ull;
+
+	double referenceRate = -1.0;
+	bool ok = true;
+	for (uint64_t fps : {30ull, 50ull, 60ull, 120ull, 144ull})
+	{
+		uint64_t frameUs = 1000000ull / fps;
+		uint64_t frames = totalUs / frameUs;
+		auto accumulator = makeUnceilinged(rateNumerator, 1, 250000);
+		uint64_t ticks = runFrames(accumulator, frameUs, frames);
+		double simulatedUs = static_cast<double>(frames * frameUs);
+		double ticksPerSecond = static_cast<double>(ticks) / (simulatedUs / 1e6);
+		if (referenceRate < 0.0)
+		{
+			referenceRate = ticksPerSecond;
+			continue;
+		}
+		if (!nearlyEqual(ticksPerSecond, referenceRate, 0.001))
+		{
+			LogError("test_legacy_city_tier_fps_independent: {0} FPS gave {1} ticks/s, "
+			         "expected ~{2}",
+			         fps, ticksPerSecond, referenceRate);
+			ok = false;
+		}
+	}
+	// And the rate itself must land exactly on the old 60 FPS speed: 6 ticks/frame * 60
+	// FPS = 360 ticks/s.
+	if (referenceRate != 360.0)
+	{
+		LogError("test_legacy_city_tier_fps_independent: rate was {0} ticks/s, expected 360",
+		         referenceRate);
+		ok = false;
+	}
+	return ok;
+}
+
+// Legacy battle {0,1,2,4} at 60 FPS, same treatment.
+static bool test_legacy_battle_tiers_match_60fps_targets()
+{
+	struct Target
+	{
+		uint64_t ticksPerFrameAt60fps;
+		uint64_t expectedTicksPerSecond;
+		const char *name;
+	};
+	static const Target targets[] = {
+	    {1, 60, "Speed1"},
+	    {2, 120, "Speed2"},
+	    {4, 240, "Speed3"},
+	};
+	bool ok = true;
+	for (const auto &t : targets)
+	{
+		uint64_t actual = legacyRateTicksPerSecond(t.ticksPerFrameAt60fps);
+		if (actual != t.expectedTicksPerSecond)
+		{
+			LogError("test_legacy_battle_tiers_match_60fps_targets: {0} gave {1} ticks/s, "
+			         "expected {2}",
+			         t.name, actual, t.expectedTicksPerSecond);
+			ok = false;
+		}
+	}
+	return ok;
+}
+
+// Legacy turbo must land on exactly 18,000 game-seconds per real second (43,200
+// ticks/frame * 60 FPS = 2,592,000 ticks/s; 2,592,000 / TICKS_PER_SECOND = 18,000), and
+// that must hold at every frame rate, not just 60 FPS.
+static bool test_legacy_turbo_matches_18000_target()
+{
+	const uint64_t legacyTurboTicksPerFrameAt60fps = 43200;
+	uint64_t rateNumerator = legacyRateTicksPerSecond(legacyTurboTicksPerFrameAt60fps);
+
+	double gameSecondsPerRealSecond =
+	    static_cast<double>(rateNumerator) / static_cast<double>(TICKS_PER_SECOND);
+	if (!nearlyEqual(gameSecondsPerRealSecond, 18000.0, 1e-9))
+	{
+		LogError("test_legacy_turbo_matches_18000_target: got {0} game-s/real-s, expected "
+		         "18000",
+		         gameSecondsPerRealSecond);
+		return false;
+	}
+
+	const uint64_t simulatedSeconds = 20;
+	const uint64_t totalUs = simulatedSeconds * 1000000ull;
+	double referenceRate = -1.0;
+	bool ok = true;
+	for (uint64_t fps : {30ull, 50ull, 60ull, 120ull, 144ull})
+	{
+		uint64_t frameUs = 1000000ull / fps;
+		uint64_t frames = totalUs / frameUs;
+		auto accumulator = makeUnceilinged(rateNumerator, 1, 250000);
+		uint64_t ticks = runFrames(accumulator, frameUs, frames);
+		double simulatedUs = static_cast<double>(frames * frameUs);
+		double ticksPerSecond = static_cast<double>(ticks) / (simulatedUs / 1e6);
+		if (referenceRate < 0.0)
+		{
+			referenceRate = ticksPerSecond;
+			continue;
+		}
+		if (!nearlyEqual(ticksPerSecond, referenceRate, 0.001))
+		{
+			LogError("test_legacy_turbo_matches_18000_target: {0} FPS gave {1} ticks/s, "
+			         "expected ~{2}",
+			         fps, ticksPerSecond, referenceRate);
+			ok = false;
+		}
+	}
+	return ok;
+}
+
+// The default (non-legacy) path must be untouched by adding the legacy tables: re-check
+// the corrected city/turbo rates the option defaults to (SS3.2/Q9), duplicated from
+// test_city_tiers_match_measured_rates/test_turbo_rate_matches_original above so a
+// regression that accidentally routed the default path through a legacy table would show
+// up as a distinct failing name rather than being mistaken for a legacy test failure.
+static bool test_default_path_unchanged_by_legacy_option()
+{
+	bool ok = true;
+	auto speed4 = vanillaTickRate(6); // city Speed4, non-legacy
+	double speed4TicksPerSecond =
+	    static_cast<double>(speed4.numerator) / static_cast<double>(speed4.denominator);
+	double expectedSpeed4 = 3.034419 * TICKS_PER_SECOND;
+	if (!nearlyEqual(speed4TicksPerSecond, expectedSpeed4, 0.01))
+	{
+		LogError("test_default_path_unchanged_by_legacy_option: city Speed4 gave {0} "
+		         "ticks/s, expected {1}",
+		         speed4TicksPerSecond, expectedSpeed4);
+		ok = false;
+	}
+
+	auto turbo = vanillaTickRate(600); // city Speed5 (turbo), non-legacy
+	double turboTicksPerSecond =
+	    static_cast<double>(turbo.numerator) / static_cast<double>(turbo.denominator);
+	double expectedTurbo = 303.441874 * TICKS_PER_SECOND;
+	if (!nearlyEqual(turboTicksPerSecond, expectedTurbo, 0.01))
+	{
+		LogError("test_default_path_unchanged_by_legacy_option: turbo gave {0} ticks/s, "
+		         "expected {1}",
+		         turboTicksPerSecond, expectedTurbo);
+		ok = false;
+	}
+
+	// The corrected and legacy city Speed4 rates must differ (72.826 vs 360 ticks/s) -
+	// otherwise the two tables would not actually be distinct options.
+	if (nearlyEqual(speed4TicksPerSecond, legacyRateTicksPerSecond(6), 0.01))
+	{
+		LogError("test_default_path_unchanged_by_legacy_option: corrected and legacy city "
+		         "Speed4 rates should differ, both read {0}",
+		         speed4TicksPerSecond);
+		ok = false;
+	}
+	return ok;
+}
+
 int main(int argc, char **argv)
 {
 	if (config().parseOptions(argc, argv))
@@ -375,6 +548,10 @@ int main(int argc, char **argv)
 	allPassed &= test_hide_display_rate_ceiling();
 	allPassed &= test_turbo_rate_matches_original();
 	allPassed &= test_turbo_rate_fps_independent();
+	allPassed &= test_legacy_city_tier_fps_independent();
+	allPassed &= test_legacy_battle_tiers_match_60fps_targets();
+	allPassed &= test_legacy_turbo_matches_18000_target();
+	allPassed &= test_default_path_unchanged_by_legacy_option();
 
 	if (!allPassed)
 	{
