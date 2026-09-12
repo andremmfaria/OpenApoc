@@ -17,6 +17,7 @@
 #include "framework/framework.h"
 #include "framework/jukebox.h"
 #include "framework/keycodes.h"
+#include "framework/options.h"
 #include "framework/renderer.h"
 #include "framework/sound.h"
 #include "game/state/battle/battle.h"
@@ -78,8 +79,35 @@ static const int NUM_TABS_TB = 4;
 // reads as pause/run, not a multi-tier table), so there is no measured original battle
 // table to match the way there is for the city. These ratios are OpenApoc's own addition,
 // carried forward unchanged except for the frame-rate-coupling fix this branch makes.
+// Legacy speeds (plans/997-summary.md decision 3): before this branch, battle delivered a
+// fixed tick count per rendered frame - {0,1,2,4} - calibrated at an assumed 60 FPS
+// baseline, the same style HIDE_DISPLAY_RATE_NUMERATOR below uses for its own legacy rate.
+// ticksPerFrameAt60fps * 60 ticks/real-second preserves that speed FPS-independently, per
+// the same reasoning as legacyCityTickRate in cityview.cpp.
+VanillaTickRate legacyBattleTickRate(BattleUpdateSpeed speed)
+{
+	switch (speed)
+	{
+		case BattleUpdateSpeed::Pause:
+			return VanillaTickRate{0, 1};
+		case BattleUpdateSpeed::Speed1:
+			return VanillaTickRate{1 * 60, 1};
+		case BattleUpdateSpeed::Speed2:
+			return VanillaTickRate{2 * 60, 1};
+		case BattleUpdateSpeed::Speed3:
+			return VanillaTickRate{4 * 60, 1};
+	}
+	return VanillaTickRate{0, 1};
+}
+
 VanillaTickRate battleTickRate(BattleUpdateSpeed speed)
 {
+	// Decision 3: the legacy option selects the whole tier table, not per-tier - see the
+	// identical gate in cityview.cpp's cityTickRate.
+	if (Options::optionLegacySpeeds.get())
+	{
+		return legacyBattleTickRate(speed);
+	}
 	switch (speed)
 	{
 		case BattleUpdateSpeed::Pause:
