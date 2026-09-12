@@ -16,6 +16,7 @@
 #include "framework/image.h"
 #include "framework/jukebox.h"
 #include "framework/keycodes.h"
+#include "framework/options.h"
 #include "framework/renderer.h"
 #include "framework/sound.h"
 #include "game/state/battle/battle.h"
@@ -211,8 +212,47 @@ constexpr size_t NUM_TABS = 8;
 // 59.3x slowdown versus that old behaviour: skipping 5 game-minutes goes from about 0.02s
 // to 1.0s, 1 game-hour from about 0.20s to 11.9s, 1 game-day from about 4.8s to 4.7 real
 // minutes, and 1 game-week from about 33.6s to 33.2 real minutes.
+// Legacy speeds: before this branch, OpenApoc delivered
+// a fixed tick count per rendered frame, calibrated at an assumed 60 FPS baseline - the
+// same style HIDE_DISPLAY_RATE_NUMERATOR below already uses for its own legacy rate.
+// Expressing each tier as ticksPerFrameAt60fps * 60 ticks/real-second keeps the *speed*
+// players are used to while routing it through the same real-time TickAccumulator as the
+// corrected rates, so it stays frame-rate independent rather than resurrecting the old
+// per-rendered-frame minting bug. Turbo's 43,200 ticks/frame was OpenApoc's old
+// TURBO_TICKS constant (5 game-minutes at the pre-branch tick rate), removed as dead code
+// by the preceding branch; it is named here only to document where 43,200 comes from, not
+// reinstated as a shared constant.
+constexpr uint64_t LEGACY_TURBO_TICKS_PER_FRAME_AT_60FPS = 43200;
+
+VanillaTickRate legacyCityTickRate(CityUpdateSpeed speed)
+{
+	switch (speed)
+	{
+		case CityUpdateSpeed::Pause:
+			return VanillaTickRate{0, 1};
+		case CityUpdateSpeed::Speed1:
+			return VanillaTickRate{1 * 60, 1};
+		case CityUpdateSpeed::Speed2:
+			return VanillaTickRate{2 * 60, 1};
+		case CityUpdateSpeed::Speed3:
+			return VanillaTickRate{4 * 60, 1};
+		case CityUpdateSpeed::Speed4:
+			return VanillaTickRate{6 * 60, 1};
+		case CityUpdateSpeed::Speed5:
+			return VanillaTickRate{LEGACY_TURBO_TICKS_PER_FRAME_AT_60FPS * 60, 1};
+	}
+	return VanillaTickRate{0, 1};
+}
+
 VanillaTickRate cityTickRate(CityUpdateSpeed speed)
 {
+	// The legacy option picks the tier table AND the turbo rate together, never
+	// separately, so this single check gates the whole switch below rather than being
+	// threaded case-by-case.
+	if (Options::optionLegacySpeeds.get())
+	{
+		return legacyCityTickRate(speed);
+	}
 	switch (speed)
 	{
 		case CityUpdateSpeed::Pause:
