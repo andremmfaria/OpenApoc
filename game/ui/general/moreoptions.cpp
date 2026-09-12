@@ -4,6 +4,7 @@
 #include "forms/graphicbutton.h"
 #include "forms/label.h"
 #include "forms/listbox.h"
+#include "forms/textbutton.h"
 #include "forms/textedit.h"
 #include "forms/ui.h"
 #include "framework/configfile.h"
@@ -14,6 +15,7 @@
 #include "game/state/gamestate.h"
 #include <functional>
 #include <iomanip>
+#include <map>
 #include <regex>
 #include <sstream>
 
@@ -94,8 +96,37 @@ static const auto FLOAT_NOTIFICATIONS_LIST = {"OpenApoc.Mod.SceneryRepairCostFac
 static const std::regex NUMERIC_CHARS_REGEX("[^0-9.]");
 sp<BitmapFont> font = nullptr;
 
-static const float NUMERIC_OPTION_MAX_LIMIT = 100.0;
-static const float NUMERIC_OPTION_MIN_LIMIT = 0;
+// Bounds for the numeric options list (cityscape/battlescape Mod/NewFeature int and float
+// values): shared 0..100 default. This used to be a single file-wide constant, which is why
+// 144 and 240 were unreachable for the frame rate limit below; bounds are now looked up per
+// option so that option can have its own range without touching this default.
+static const float NUMERIC_OPTION_DEFAULT_MIN_LIMIT = 0.0f;
+static const float NUMERIC_OPTION_DEFAULT_MAX_LIMIT = 100.0f;
+
+// The presets span 30-240 (see setupFrameRateOption); a typed value is accepted anywhere in
+// that same span. "Auto" (0) is reached only via the preset button, not by typing, since it is
+// a distinct mode rather than a point on the numeric range.
+static const float TARGET_FPS_MIN_LIMIT = 30.0f;
+static const float TARGET_FPS_MAX_LIMIT = 240.0f;
+
+struct NumericOptionLimits
+{
+	float min;
+	float max;
+};
+
+static NumericOptionLimits getNumericOptionLimits(const UString &optionFullName)
+{
+	static const std::map<UString, NumericOptionLimits> overrides = {
+	    {"Framework.TargetFPS", {TARGET_FPS_MIN_LIMIT, TARGET_FPS_MAX_LIMIT}},
+	};
+	auto it = overrides.find(optionFullName);
+	if (it != overrides.end())
+	{
+		return it->second;
+	}
+	return {NUMERIC_OPTION_DEFAULT_MIN_LIMIT, NUMERIC_OPTION_DEFAULT_MAX_LIMIT};
+}
 
 } // namespace
 MoreOptions::MoreOptions(sp<GameState> state)
@@ -167,10 +198,11 @@ void MoreOptions::saveLists()
 				{
 					value = std::stoi(std::dynamic_pointer_cast<TextEdit>(control)->getText());
 
-					if (value > NUMERIC_OPTION_MAX_LIMIT)
-						value = (int)NUMERIC_OPTION_MAX_LIMIT;
-					else if (value < NUMERIC_OPTION_MIN_LIMIT)
-						value = (int)NUMERIC_OPTION_MIN_LIMIT;
+					const auto limits = getNumericOptionLimits(*name);
+					if (value > limits.max)
+						value = (int)limits.max;
+					else if (value < limits.min)
+						value = (int)limits.min;
 				}
 				catch (const std::exception &)
 				{
@@ -191,10 +223,11 @@ void MoreOptions::saveLists()
 				{
 					value = std::stof(std::dynamic_pointer_cast<TextEdit>(control)->getText());
 
-					if (value > NUMERIC_OPTION_MAX_LIMIT)
-						value = NUMERIC_OPTION_MAX_LIMIT;
-					else if (value < NUMERIC_OPTION_MIN_LIMIT)
-						value = NUMERIC_OPTION_MIN_LIMIT;
+					const auto limits = getNumericOptionLimits(*name);
+					if (value > limits.max)
+						value = limits.max;
+					else if (value < limits.min)
+						value = limits.min;
 				}
 				catch (const std::exception &)
 				{
@@ -260,7 +293,7 @@ void MoreOptions::loadLists()
 				const auto labelText = std::to_string(configValue);
 
 				const auto textEdit = createTextEditForNumericOptions(
-				    notification.first, notification.second, listControl, labelText);
+				    notification.first, notification.second, listControl->ItemSize, labelText);
 
 				const auto buttonUpCallback = [this, textEdit, fullName](const Event *)
 				{
@@ -269,7 +302,8 @@ void MoreOptions::loadLists()
 						auto value =
 						    std::stoi(std::dynamic_pointer_cast<TextEdit>(textEdit)->getText());
 
-						if (value >= NUMERIC_OPTION_MAX_LIMIT)
+						const auto limits = getNumericOptionLimits(fullName);
+						if (value >= limits.max)
 							return;
 
 						value += 1;
@@ -289,7 +323,8 @@ void MoreOptions::loadLists()
 						auto value =
 						    std::stoi(std::dynamic_pointer_cast<TextEdit>(textEdit)->getText());
 
-						if (value <= NUMERIC_OPTION_MIN_LIMIT)
+						const auto limits = getNumericOptionLimits(fullName);
+						if (value <= limits.min)
 							return;
 
 						value -= 1;
@@ -302,11 +337,11 @@ void MoreOptions::loadLists()
 					}
 				};
 
-				addButtonsToNumericOption(textEdit, listControl, buttonUpCallback,
+				addButtonsToNumericOption(textEdit, listControl->ItemSize, buttonUpCallback,
 				                          buttonDownCallback);
 
 				addChildLabelToControl(textEdit, notification.first, notification.second,
-				                       listControl, 65);
+				                       listControl->ItemSize, 65);
 
 				listControl->addItem(textEdit);
 				textEditList.push_back(textEdit);
@@ -325,7 +360,7 @@ void MoreOptions::loadLists()
 				const auto labelText = stream.str();
 
 				const auto textEdit = createTextEditForNumericOptions(
-				    notification.first, notification.second, listControl, labelText);
+				    notification.first, notification.second, listControl->ItemSize, labelText);
 
 				const auto buttonUpCallback = [this, textEdit, fullName](const Event *)
 				{
@@ -334,7 +369,8 @@ void MoreOptions::loadLists()
 						auto value =
 						    std::stof(std::dynamic_pointer_cast<TextEdit>(textEdit)->getText());
 
-						if (value >= NUMERIC_OPTION_MAX_LIMIT)
+						const auto limits = getNumericOptionLimits(fullName);
+						if (value >= limits.max)
 							return;
 
 						value += (float)0.1;
@@ -357,7 +393,8 @@ void MoreOptions::loadLists()
 						auto value =
 						    std::stof(std::dynamic_pointer_cast<TextEdit>(textEdit)->getText());
 
-						if (value <= NUMERIC_OPTION_MIN_LIMIT)
+						const auto limits = getNumericOptionLimits(fullName);
+						if (value <= limits.min)
 							return;
 
 						value -= (float)0.1;
@@ -373,11 +410,11 @@ void MoreOptions::loadLists()
 					}
 				};
 
-				addButtonsToNumericOption(textEdit, listControl, buttonUpCallback,
+				addButtonsToNumericOption(textEdit, listControl->ItemSize, buttonUpCallback,
 				                          buttonDownCallback);
 
 				addChildLabelToControl(textEdit, notification.first, notification.second,
-				                       listControl, 65);
+				                       listControl->ItemSize, 65);
 
 				listControl->addItem(textEdit);
 				textEditList.push_back(textEdit);
@@ -407,13 +444,13 @@ void MoreOptions::configureOptionControlAndAddToControlListBox(const sp<Control>
 
 	control->Size = {240, listControl->ItemSize};
 	control->setData(mksp<UString>(optionFullName));
-	addChildLabelToControl(control, optionSection, optionName, listControl, labelLocationHeight);
+	addChildLabelToControl(control, optionSection, optionName, listControl->ItemSize,
+	                       labelLocationHeight);
 	listControl->addItem(control);
 }
 
 sp<TextEdit> MoreOptions::createTextEditForNumericOptions(const UString &optionSection,
-                                                          const UString &optionName,
-                                                          const sp<ListBox> &listControl,
+                                                          const UString &optionName, int itemSize,
                                                           const UString &labelText) const
 {
 	const auto optionFullName = getOptionFullName(optionSection, optionName);
@@ -423,7 +460,7 @@ sp<TextEdit> MoreOptions::createTextEditForNumericOptions(const UString &optionS
 
 	textEdit->setText(labelText);
 
-	textEdit->Size = {25, listControl->ItemSize};
+	textEdit->Size = {25, itemSize};
 	textEdit->setData(mksp<UString>(optionFullName));
 
 	// Add common callbacks
@@ -492,7 +529,7 @@ sp<TextEdit> MoreOptions::createTextEditForNumericOptions(const UString &optionS
 }
 
 void MoreOptions::addButtonsToNumericOption(
-    const sp<Control> &control, const sp<ListBox> &listControl,
+    const sp<Control> &control, int itemSize,
     const std::function<void(FormsEvent *e)> &buttonUpClickCallback,
     const std::function<void(FormsEvent *e)> &buttonDownClickCallback)
 {
@@ -502,7 +539,7 @@ void MoreOptions::addButtonsToNumericOption(
 	    fw().data->loadImage(
 	        "PCK:xcom3/ufodata/icons.pck:xcom3/ufodata/icons.tab:14:ui/menuopt.pal"));
 
-	buttonUp->Size = {20, listControl->ItemSize};
+	buttonUp->Size = {20, itemSize};
 	buttonUp->Location = {27, 0};
 
 	buttonUp->addCallback(FormEventType::ButtonClick, buttonUpClickCallback);
@@ -513,19 +550,19 @@ void MoreOptions::addButtonsToNumericOption(
 	    fw().data->loadImage(
 	        "PCK:xcom3/ufodata/icons.pck:xcom3/ufodata/icons.tab:16:ui/menuopt.pal"));
 
-	buttonDown->Size = {20, listControl->ItemSize};
+	buttonDown->Size = {20, itemSize};
 	buttonDown->Location = {45, 0};
 
 	buttonDown->addCallback(FormEventType::ButtonClick, buttonDownClickCallback);
 }
 
 void MoreOptions::addChildLabelToControl(const sp<Control> &control, const UString &optionSection,
-                                         const UString &optionName, const sp<ListBox> &listControl,
+                                         const UString &optionName, int itemSize,
                                          const int &labelLocationHeight)
 {
 	const auto chidlLabel =
 	    control->createChild<Label>(config().describe(optionSection, optionName), font);
-	chidlLabel->Size = {216, listControl->ItemSize};
+	chidlLabel->Size = {216, itemSize};
 	chidlLabel->Location = {labelLocationHeight, 0};
 	chidlLabel->ToolTipText = config().describe(optionSection, optionName);
 	chidlLabel->ToolTipFont = font;
@@ -553,12 +590,121 @@ void MoreOptions::addFocusControlCallbackToNumberTextEdit(
 	}
 }
 
+// The frame rate limit control: a preset ListBox (SS11.1 route 1 - the toolkit has no
+// combo/dropdown control) plus a custom TextEdit built with the same
+// createTextEditForNumericOptions/addButtonsToNumericOption pattern the generic numeric
+// options above use. Unlike those, every change here calls config().set() directly instead of
+// waiting for MoreOptions::finish()/saveLists(): Framework::run() re-reads
+// Options::targetFPS every loop iteration, so writing the option immediately is what makes a
+// new choice take effect without a restart.
+void MoreOptions::setupFrameRateOption()
+{
+	static const std::vector<std::pair<UString, int>> presets = {
+	    {"Auto", 0}, {"30", 30}, {"60", 60}, {"75", 75}, {"144", 144}, {"240", 240},
+	};
+	// Matches the preset ListBox's own item height; the list uses <item size="0"/> so its
+	// (variable-width) items keep whatever size they are given here.
+	const int customItemHeight = 16;
+
+	auto presetList = menuform->findControlTyped<ListBox>("FRAMERATE_PRESET_LIST");
+	presetList->clear();
+
+	const int currentFPS = config().getInt("Framework.TargetFPS");
+	const UString initialText = std::to_string(currentFPS > 0 ? currentFPS : 0);
+
+	const auto customTextEdit =
+	    createTextEditForNumericOptions("Framework", "TargetFPS", customItemHeight, initialText);
+	customTextEdit->Name = "FRAMERATE_CUSTOM_VALUE";
+
+	auto applyTypedValue = [customTextEdit](Event *)
+	{
+		try
+		{
+			int value = std::stoi(customTextEdit->getText());
+			const auto limits = getNumericOptionLimits("Framework.TargetFPS");
+			if (value > (int)limits.max)
+				value = (int)limits.max;
+			else if (value < (int)limits.min)
+				value = (int)limits.min;
+			customTextEdit->setText(std::to_string(value));
+			config().set("Framework.TargetFPS", value);
+		}
+		catch (const std::exception &)
+		{
+			customTextEdit->setText(std::to_string(config().getInt("Framework.TargetFPS")));
+		}
+	};
+	customTextEdit->addCallback(FormEventType::TextEditFinish, applyTypedValue);
+
+	const auto buttonUpCallback = [customTextEdit](const Event *)
+	{
+		try
+		{
+			int value = std::stoi(customTextEdit->getText());
+			const auto limits = getNumericOptionLimits("Framework.TargetFPS");
+			// Below-min here means the field currently reads "Auto" (0): step up lands on the
+			// floor of the typed range rather than counting up from 0.
+			if (value < (int)limits.min)
+				value = (int)limits.min;
+			else if (value < limits.max)
+				value += 1;
+			else
+				return;
+			customTextEdit->setText(std::to_string(value));
+			config().set("Framework.TargetFPS", value);
+		}
+		catch (const std::exception &)
+		{
+		}
+	};
+	const auto buttonDownCallback = [customTextEdit](const Event *)
+	{
+		try
+		{
+			int value = std::stoi(customTextEdit->getText());
+			const auto limits = getNumericOptionLimits("Framework.TargetFPS");
+			if (value <= (int)limits.min)
+				return;
+			value -= 1;
+			customTextEdit->setText(std::to_string(value));
+			config().set("Framework.TargetFPS", value);
+		}
+		catch (const std::exception &)
+		{
+		}
+	};
+	addButtonsToNumericOption(customTextEdit, customItemHeight, buttonUpCallback,
+	                          buttonDownCallback);
+
+	customTextEdit->setParent(menuform);
+	customTextEdit->Location = {456, 374};
+
+	// Built after customTextEdit so each preset's callback can capture it directly: UI::getForm
+	// always hands back a fresh copyTo() of the cached template (see ui.cpp), not this stage's
+	// own menuform, so looking the field up by name from inside the callback would find a
+	// disconnected copy instead of the control actually on screen.
+	for (const auto &preset : presets)
+	{
+		const auto button = mksp<TextButton>(preset.first, font);
+		button->Size = {40, customItemHeight};
+		const int presetValue = preset.second;
+		button->addCallback(FormEventType::ButtonClick,
+		                    [customTextEdit, presetValue](Event *)
+		                    {
+			                    config().set("Framework.TargetFPS", presetValue);
+			                    customTextEdit->setText(std::to_string(presetValue));
+		                    });
+		presetList->addItem(button);
+	}
+}
+
 bool MoreOptions::isTransition() { return false; }
 
 void MoreOptions::begin()
 {
 	menuform->findControlTyped<Label>("TEXT_FUNDS")->setText(state->getPlayerBalance());
 	loadLists();
+	setupFrameRateOption();
 
 	// Left side
 	menuform->findControlTyped<CheckBox>("DEBUGVIS_TOGGLE")

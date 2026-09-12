@@ -135,6 +135,36 @@
 						<size width="270" height="16"/>
 					</label>
 				</checkbox>
+				<!-- Frame rate limit: a preset ListBox (the toolkit has no combo/dropdown
+				     control) plus a custom TextEdit built at runtime in
+				     MoreOptions::setupFrameRateOption(). The preset items are the same
+				     TextButton-in-a-ListBox pattern used by options.form/optionsmenu.cpp. -->
+				<label id="FRAMERATE_TEXT" text="Frame rate limit">
+					<position x="311" y="336"/>
+					<size width="270" height="14"/>
+					<font>smalfont</font>
+				</label>
+				<scroll id="FRAMERATE_PRESET_SCROLL" visible="false">
+					<position x="0" y="0"/>
+					<size width="1" height="1"/>
+				</scroll>
+				<listbox id="FRAMERATE_PRESET_LIST" scrollbarid="FRAMERATE_PRESET_SCROLL">
+					<position x="311" y="352"/>
+					<size width="270" height="16"/>
+					<item size="0" spacing="6"/>
+					<orientation list="horizontal" scroll="horizontal"/>
+				</listbox>
+				<label id="FRAMERATE_CUSTOM_TEXT" text="Custom (30-240):">
+					<position x="311" y="374"/>
+					<size width="140" height="16"/>
+					<font>smalfont</font>
+				</label>
+				<label id="FRAMERATE_VSYNC_NOTE"
+				       text="Auto removes the cap. If FPS still looks capped, V-Sync (Framework.SwapInterval) is overriding it.">
+					<position x="311" y="394"/>
+					<size width="270" height="40"/>
+					<font>smalfont</font>
+				</label>
 				<label id="CITYLIST_NAME">
 					<position x="305" y="70"/>
 					<font>smalfont</font>
