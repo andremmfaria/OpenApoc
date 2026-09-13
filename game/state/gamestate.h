@@ -56,13 +56,29 @@ static const bool UPDATE_EVERY_TICK = false;
 // Schema version of the save format itself (header field written by GameState::serialize() /
 // read by GameState::deserialize(), independent of any single member's value). Saves written
 // before this field existed are treated as version 0.
-static const unsigned int CURRENT_SAVE_FORMAT_VERSION = 1;
+//
+// v2 marks the switch to a 180 TPS game clock (TICKS_MULTIPLIER 4 -> 5). Existing player
+// saves must keep working, so
+// GameState::migrateSaveFormat() rescales every tick-denominated field below v2 by 5/4 rather
+// than rejecting the save - see its own comment in gamestate.cpp for the full field inventory
+// and how completeness was checked.
+static const unsigned int CURRENT_SAVE_FORMAT_VERSION = 2;
 
 // Version stamp carried by generated gamestate data (baked in by the extractors), distinct from
 // the save format version above: this tells a future load-time rescale whether a piece of
 // gamestate content (eg baked tick-denominated values) was produced by the current extractors or
 // is left over from before they last changed. Data without this field defaults to 0.
-static const unsigned int CURRENT_BAKED_DATA_VERSION = 1;
+//
+// v2 marks data baked under TICKS_MULTIPLIER==5 (180 TPS): AEquipmentType/VEquipmentType
+// fire_delay/projectile_delay/stunTicks and Organisation::recurring_missions time/
+// minIntervalRepeat/maxIntervalRepeat are all baked pre-multiplied by the vanilla-to-ticks
+// ratio, either by the extractors (extract_agent_equipment.cpp, extract_vehicle_equipment.cpp,
+// extract_organisations.cpp - all already parametric on VANILLA_TO_TICKS/TICKS_PER_MINUTE/
+// TICKS_PER_SECOND, so re-running them needs no code change) or by hand in common_patch XML
+// overrides. GameState::deserialize() rescales these fields by 5/4 whenever dataVersion is below
+// this, so gamestate content baked (or hand-edited) before the flip keeps working without
+// re-extraction.
+static const unsigned int CURRENT_BAKED_DATA_VERSION = 2;
 
 class GameScore
 {
@@ -225,10 +241,20 @@ class GameState : public std::enable_shared_from_this<GameState>
 	// deserializes gamestate from archive
 	bool deserialize(SerializationArchive *archive);
 
-	// Migration hook: transforms a just-deserialized state from an older save format version up
-	// to CURRENT_SAVE_FORMAT_VERSION. Called once by deserialize() right after the state has been
-	// loaded. fromVersion 0 covers every save written before the version field existed.
+	// Migration hook: called once by deserialize() right after the state has been loaded, with
+	// the save-format version the state was loaded from (0 covers every save written before the
+	// version field existed). Walks every live tick-denominated field in the state and rescales
+	// it in place when fromVersion predates CURRENT_SAVE_FORMAT_VERSION. Defined in gamestate.cpp
+	// (needs full definitions of most entity classes); see that definition's comment for the
+	// full field inventory and how completeness was checked.
 	void migrateSaveFormat(unsigned int fromVersion);
+
+	// Rescales gamestate content baked under an older TICKS_MULTIPLIER, if dataVersion indicates
+	// it is stale (see CURRENT_BAKED_DATA_VERSION). Called unconditionally by deserialize(),
+	// independent of migrateSaveFormat() above - this covers ruleset/baked content (equipment
+	// fire delays, organisation mission schedules), not live simulation progress, so it applies
+	// equally to a fresh mod/starter load and to an old player save.
+	void rescaleBakedTickData();
 
 	// Called on a newly started Game to setup initial state that isn't serialized in (random
 	// vehicle positions etc.) - it is not called

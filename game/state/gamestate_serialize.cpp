@@ -507,6 +507,7 @@ bool GameState::deserialize(SerializationArchive *archive)
 		}
 		serializeIn(this, root, *this);
 		migrateSaveFormat(saveFormatVersion);
+		rescaleBakedTickData();
 	}
 	catch (SerializationException &e)
 	{
@@ -516,33 +517,70 @@ bool GameState::deserialize(SerializationArchive *archive)
 	return true;
 }
 
-void GameState::migrateSaveFormat(unsigned int fromVersion)
+// GameState::migrateSaveFormat() is defined in gamestate.cpp: it needs full definitions of
+// most gamestate entity classes (Vehicle, Agent, BattleUnit, ...) to rescale their tick-
+// denominated members, which gamestate.cpp already pulls in for other reasons.
+
+void GameState::rescaleBakedTickData()
 {
-	// Migrations are chained oldest-to-newest so a save several versions behind is walked forward
-	// one step at a time. Each step should be idempotent-looking (guarded by the version it
-	// upgrades from) so this function can be re-read top to bottom as the change history.
-	//
-	// v0 -> v1: no-op. Version 0 covers every save ever written before this field existed, since
-	// no released version wrote one. Nothing about tick/timing representation has changed since,
-	// so there is nothing to transform yet.
-	//
-	// A future migration that changes the game's tick rate (or anything else that redefines what
-	// a stored tick count means) would need to add a step here that rescales, across the whole
-	// state:
-	//   - absolute tick timestamps (e.g. gameTime/gameTimeBeforeBattle, nextInvasion,
-	//     expirationDate-style fields, per-event timestamps, per-unit "ticks available/last
-	//     think" fields)
-	//   - countdown/accumulator members (the ticksUntil*/ticksAccumulated*-style fields
-	//     throughout battle and city state)
-	//   - animation-frame counters (only if the frame-to-tick ratio itself changes)
-	// and would need its own care around the baked-data version stamp (CURRENT_BAKED_DATA_VERSION
-	// / GameState::dataVersion) for values like fire_delay that are baked pre-multiplied into
-	// generated data rather than stored as plain ticks.
-	if (fromVersion >= CURRENT_SAVE_FORMAT_VERSION)
+	if (dataVersion >= CURRENT_BAKED_DATA_VERSION)
 	{
 		return;
 	}
-	// No migration steps exist yet: v0 -> v1 is a no-op (see above).
+	LogWarning("Gamestate data version {0} predates TICKS_MULTIPLIER==5 (current data version "
+	           "{1}) - rescaling baked tick-denominated fields by {2}/{3}",
+	           dataVersion, CURRENT_BAKED_DATA_VERSION, VANILLA_TO_TICKS, TICKS_PER_VANILLA_FRAME);
+
+	// The rescale factor is exactly TICKS_MULTIPLIER-now / TICKS_MULTIPLIER-then. Both are baked
+	// into the current build already (there is nothing left on disk recording what multiplier
+	// v0/v1 data used), so this is hardcoded to the one transition CURRENT_BAKED_DATA_VERSION has
+	// ever needed (4 -> 5) rather than expressed generically. A future bump of
+	// CURRENT_BAKED_DATA_VERSION for a different reason must not reuse this rescale unmodified.
+	constexpr uint64_t oldMultiplier = 4;
+	constexpr uint64_t newMultiplier = TICKS_MULTIPLIER;
+	static_assert(newMultiplier == 5,
+	              "rescaleBakedTickData()'s 4->5 factor no longer matches TICKS_MULTIPLIER - "
+	              "this function needs updating for whatever change bumped it");
+	auto rescale = [](int value) -> int
+	{
+		return static_cast<int>((static_cast<int64_t>(value) * newMultiplier + oldMultiplier / 2) /
+		                        oldMultiplier);
+	};
+	auto rescale64 = [](uint64_t value) -> uint64_t
+	{ return (value * newMultiplier + oldMultiplier / 2) / oldMultiplier; };
+
+	// extract_agent_equipment.cpp / extract_vehicle_equipment.cpp bake fire_delay (and, via
+	// hand-edited common_patch overrides, projectile_delay/stunTicks) pre-multiplied by
+	// VANILLA_TO_TICKS. ttl is deliberately excluded: it is voxels travelled, not ticks.
+	for (auto &pair : agent_equipment)
+	{
+		auto &type = pair.second;
+		type->fire_delay = rescale(type->fire_delay);
+		type->projectile_delay = rescale(type->projectile_delay);
+	}
+	for (auto &pair : vehicle_equipment)
+	{
+		auto &type = pair.second;
+		type->fire_delay = rescale(type->fire_delay);
+		type->stunTicks = rescale(type->stunTicks);
+	}
+
+	// extract_organisations.cpp bakes RecurringMission::time and MissionPattern::
+	// minIntervalRepeat/maxIntervalRepeat as absolute tick durations.
+	for (auto &orgPair : organisations)
+	{
+		for (auto &cityMissions : orgPair.second->recurring_missions)
+		{
+			for (auto &mission : cityMissions.second)
+			{
+				mission.time = rescale64(mission.time);
+				mission.pattern.minIntervalRepeat = rescale64(mission.pattern.minIntervalRepeat);
+				mission.pattern.maxIntervalRepeat = rescale64(mission.pattern.maxIntervalRepeat);
+			}
+		}
+	}
+
+	dataVersion = CURRENT_BAKED_DATA_VERSION;
 }
 
 static bool serialize(const BattleMapTileset &tileSet, SerializationArchive *archive)

@@ -29,7 +29,7 @@
 	</projectile_sprites>
 	<damage>9001</damage>
 	<accuracy>75</accuracy>
-	<fire_delay>10</fire_delay>
+	<fire_delay>13</fire_delay>
 	<tail_size>35</tail_size>
 	<range>1000</range>
 	<ttl>3000</ttl>
@@ -42,7 +42,7 @@
   <entry>
     <key>AEQUIPMENTTYPE_SPITTER_S_VOMIT_FUNNEL</key>
     <value>
-      <projectile_delay>64</projectile_delay>
+      <projectile_delay>80</projectile_delay>
     </value>
   </entry>
   <entry>
@@ -134,7 +134,7 @@
       </projectile_sprites>
       <damage>26</damage>
       <accuracy>95</accuracy>
-      <fire_delay>42</fire_delay>
+      <fire_delay>53</fire_delay>
       <tail_size>36</tail_size>
       <range>1200</range>
       <ttl>3600</ttl>
@@ -199,7 +199,7 @@
       </projectile_sprites>
       <damage>70</damage>
       <accuracy>75</accuracy>
-      <fire_delay>40</fire_delay>
+      <fire_delay>50</fire_delay>
       <tail_size>35</tail_size>
       <range>1000</range>
       <ttl>3000</ttl>
