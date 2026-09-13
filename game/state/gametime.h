@@ -7,7 +7,7 @@ namespace OpenApoc
 {
 
 static constexpr unsigned VANILLA_TICKS_PER_SECOND = 36;
-static constexpr unsigned TICKS_MULTIPLIER = 4;
+static constexpr unsigned TICKS_MULTIPLIER = 5;
 static constexpr unsigned TICKS_PER_SECOND = VANILLA_TICKS_PER_SECOND * TICKS_MULTIPLIER;
 static constexpr unsigned TICKS_PER_MINUTE = TICKS_PER_SECOND * 60;
 static constexpr unsigned TICKS_PER_HOUR = TICKS_PER_MINUTE * 60;
@@ -92,6 +92,26 @@ static constexpr unsigned TICK_SCALE = TICKS_PER_SECOND / 4;
 static_assert(TICKS_PER_SECOND / TICK_SCALE == 4,
               "TICK_SCALE must stay proportional to TICKS_PER_SECOND (ratio of 4) - see the "
               "doc comment above");
+
+/*
+    A full sweep of the codebase's compile-time `TICKS_PER_SECOND / N` and
+    `TICKS_PER_SECOND * a / b` expressions found divisors 2, 3, 4, 6, 9, 12, 18 and the
+    combined form `* 3 / 2` in use elsewhere, all of which
+    must divide TICKS_PER_SECOND exactly or the corresponding cadence (PSI checks, enzyme ticks,
+    turns, cloak timers, brainsuck, snooze delays...) silently drifts off its intended
+    real-seconds duration. 144 and 180 both satisfy every one of these; a future change to
+    TICKS_MULTIPLIER must keep doing so, or update the affected constant's own expression to a
+    divisor-safe fraction (see WEAPON_MISFIRE_DELAY_TICKS, TICKS_PER_SCANNER_UPDATE,
+    UNIT_AI_THINK_INTERVAL and VEHICLE_ANIMATION_TICKS_PER_FRAME's doc comments for the four
+    known exceptions, which use /8, /16 and /72 and are deliberately left truncating).
+*/
+static_assert(TICKS_PER_SECOND % 2 == 0, "TICKS_PER_SECOND must stay divisible by 2");
+static_assert(TICKS_PER_SECOND % 3 == 0, "TICKS_PER_SECOND must stay divisible by 3");
+static_assert(TICKS_PER_SECOND % 4 == 0, "TICKS_PER_SECOND must stay divisible by 4");
+static_assert(TICKS_PER_SECOND % 6 == 0, "TICKS_PER_SECOND must stay divisible by 6");
+static_assert(TICKS_PER_SECOND % 9 == 0, "TICKS_PER_SECOND must stay divisible by 9");
+static_assert(TICKS_PER_SECOND % 12 == 0, "TICKS_PER_SECOND must stay divisible by 12");
+static_assert(TICKS_PER_SECOND % 18 == 0, "TICKS_PER_SECOND must stay divisible by 18");
 
 class GameTime
 {
