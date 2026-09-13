@@ -8,7 +8,8 @@
 #include <list>
 #include <set>
 
-#define TICKS_PER_FRAME_MAP_PART 8
+// Scaled with TICKS_PER_SECOND, see TICKS_PER_FRAME_UNIT in battleunit.h.
+#define TICKS_PER_FRAME_MAP_PART 10
 #define FALLING_MAP_PART_DAMAGE_TO_UNIT 50
 
 namespace OpenApoc

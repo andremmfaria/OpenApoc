@@ -222,6 +222,18 @@ constexpr size_t NUM_TABS = 8;
 // TURBO_TICKS constant (5 game-minutes at the pre-branch tick rate), removed as dead code
 // by the preceding branch; it is named here only to document where 43,200 comes from, not
 // reinstated as a shared constant.
+//
+// Unlike HIDE_DISPLAY_RATE_NUMERATOR below, this legacy table IS tied to VANILLA_TO_TICKS:
+// it exists specifically to reproduce a fixed real-world game-seconds-per-real-second speed
+// the player is used to (see decision 3's "preserves the old speeds, not the old bug"), and
+// that speed is this ticks-per-second result divided by TICKS_PER_SECOND elsewhere, so the
+// old "assumed 60 FPS" conversion factor must scale with TICKS_MULTIPLIER (60 -> 60*5/4 = 75)
+// to keep landing on the same game-seconds/real-second target for every tier, turbo included
+// (LEGACY_TURBO_TICKS_PER_FRAME_AT_60FPS * 75 / TICKS_PER_SECOND(180) = 18,000 game-sec/
+// real-sec, unchanged from the old *60/144 at TICKS_MULTIPLIER==4 - see
+// tests/test_tickaccumulator.cpp). The {1,2,4,6} and 43,200 ticks-per-frame constants
+// themselves are untouched, since "how many old-OpenApoc rendered frames this represents" is
+// not itself tick-rate-dependent.
 constexpr uint64_t LEGACY_TURBO_TICKS_PER_FRAME_AT_60FPS = 43200;
 
 VanillaTickRate legacyCityTickRate(CityUpdateSpeed speed)
@@ -231,15 +243,15 @@ VanillaTickRate legacyCityTickRate(CityUpdateSpeed speed)
 		case CityUpdateSpeed::Pause:
 			return VanillaTickRate{0, 1};
 		case CityUpdateSpeed::Speed1:
-			return VanillaTickRate{1 * 60, 1};
+			return VanillaTickRate{1 * 75, 1};
 		case CityUpdateSpeed::Speed2:
-			return VanillaTickRate{2 * 60, 1};
+			return VanillaTickRate{2 * 75, 1};
 		case CityUpdateSpeed::Speed3:
-			return VanillaTickRate{4 * 60, 1};
+			return VanillaTickRate{4 * 75, 1};
 		case CityUpdateSpeed::Speed4:
-			return VanillaTickRate{6 * 60, 1};
+			return VanillaTickRate{6 * 75, 1};
 		case CityUpdateSpeed::Speed5:
-			return VanillaTickRate{LEGACY_TURBO_TICKS_PER_FRAME_AT_60FPS * 60, 1};
+			return VanillaTickRate{LEGACY_TURBO_TICKS_PER_FRAME_AT_60FPS * 75, 1};
 	}
 	return VanillaTickRate{0, 1};
 }

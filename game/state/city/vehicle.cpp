@@ -900,11 +900,14 @@ void VehicleMover::updateFalling(GameState &state, unsigned int ticks)
 	{
 		auto newPosition = vehicle.position;
 
-		// Random doodads 2% chance if low health
+		// Random doodads: per-tick chance, scaled by 4/TICKS_MULTIPLIER (was 2% per tick at
+		// TICKS_MULTIPLIER==4, i.e. 1.6% per tick now) so the per-real-second chance stays put
+		// as TICKS_PER_SECOND changes. Expressed out of 1000 rather than 100 since 1.6% has no
+		// exact integer-percent form.
 		auto vehicleHealth = vehicle.getHealth();
 		// Check that vehicle health is not zero or we try to divide by zero
 		if (vehicleHealth != 0 && vehicle.getMaxHealth() / vehicle.getHealth() >= 3 &&
-		    randBoundsExclusive(state.rng, 0, 100) < 2)
+		    randBoundsExclusive(state.rng, 0, 1000) < 16)
 		{
 			LogWarning("Doodads");
 			UString doodadId = randBool(state.rng) ? "DOODAD_1_AUTOCANNON" : "DOODAD_2_AIRGUARD";
@@ -1186,9 +1189,9 @@ void VehicleMover::updateSliding(GameState &state, unsigned int ticks)
 	{
 		auto newPosition = vehicle.position;
 
-		// Random doodads 2% chance if low health
+		// Random doodads: see the matching comment in updateFalling() above.
 		if (vehicle.getMaxHealth() / vehicle.getHealth() >= 3 &&
-		    randBoundsExclusive(state.rng, 0, 100) < 2)
+		    randBoundsExclusive(state.rng, 0, 1000) < 16)
 		{
 			UString doodadId = randBool(state.rng) ? "DOODAD_1_AUTOCANNON" : "DOODAD_2_AIRGUARD";
 			auto doodadPos = vehicle.position;
@@ -3804,7 +3807,10 @@ void Vehicle::equipDefaultEquipment(GameState &state)
 void Vehicle::nextFrame(int ticks)
 {
 	// ~14.4 sprite-animation frames per second: TICKS_PER_SECOND / 14.4, i.e. * 5 / 72 to
-	// stay exact integer math (144 * 5 / 72 == 10 at 144 TPS, the value this replaces).
+	// stay exact integer math (144 * 5 / 72 == 10 at 144 TPS, the value this replaces). 72 does
+	// not divide 180 (180 * 5 / 72 = 12.5, truncating to 12, i.e. ~15.0 frames/second instead of
+	// 14.4 - a ~4% drift); accepted for the same reason as WEAPON_MISFIRE_DELAY_TICKS
+	// (battleunit.h) rather than re-expressed, since this is a cosmetic animation rate.
 	constexpr unsigned VEHICLE_ANIMATION_TICKS_PER_FRAME = TICKS_PER_SECOND * 5 / 72;
 	animationDelay += ticks;
 	if (animationDelay > (int)VEHICLE_ANIMATION_TICKS_PER_FRAME)

@@ -15,6 +15,8 @@ namespace OpenApoc
 // How frequently are scanners updated, meaning, their dots "fade away"
 // Makes sense to do 8 times a turn since that's 16 times per whole lifetime
 // and we recognize 16 different colors
+// TICKS_PER_SECOND is not guaranteed divisible by 8 (180/8 = 22.5, truncating to 22); accepted,
+// see WEAPON_MISFIRE_DELAY_TICKS in battleunit.h for the reasoning.
 static const unsigned TICKS_PER_SCANNER_UPDATE = TICKS_PER_SECOND / 8;
 // How long it takes for a dot to completely fade
 static const unsigned TICKS_SCANNER_REMAIN_LIT = TICKS_PER_TURN / 2;

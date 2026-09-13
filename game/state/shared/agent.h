@@ -12,8 +12,9 @@
 #include <map>
 #include <set>
 
-// How many in-game ticks are required to travel one in-game unit
-#define TICKS_PER_UNIT_TRAVELLED_AGENT 8
+// How many in-game ticks are required to travel one in-game unit (scaled with TICKS_PER_SECOND,
+// see TICKS_PER_UNIT_TRAVELLED_BATTLEUNIT in battleunit.h)
+#define TICKS_PER_UNIT_TRAVELLED_AGENT 10
 
 namespace OpenApoc
 {
