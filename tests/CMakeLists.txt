@@ -84,3 +84,17 @@ add_test(NAME ${TEST} COMMAND ${TEST}
 		${CMAKE_SOURCE_DIR}/data/mods/base/data/submods/org.openapoc.base/difficulty0
 		${CMAKE_SOURCE_DIR}/data/mods/base/base_gamestate
 		--Framework.CD=${CD_PATH} --Framework.Data=${CMAKE_SOURCE_DIR}/data)
+
+# benchmark_gamestate_update requires args (same as test_serialize) - a perf report, not a
+# correctness gate, so it is wired into ctest purely so it stays buildable and runnable the same
+# way as the other harnesses; its numbers are reported manually, not asserted on.
+set(TEST benchmark_gamestate_update)
+add_executable(${TEST} ${TEST}.cpp)
+target_link_libraries(${TEST} OpenApoc_Library OpenApoc_Framework
+		OpenApoc_GameState)
+target_compile_definitions(${TEST} PRIVATE -DUNIT_TEST)
+add_test(NAME ${TEST} COMMAND ${TEST}
+		${CMAKE_SOURCE_DIR}/data/mods/base/data/submods/org.openapoc.base/difficulty0
+		${CMAKE_SOURCE_DIR}/data/mods/base/base_gamestate
+		--Framework.CD=${CD_PATH} --Framework.Data=${CMAKE_SOURCE_DIR}/data
+		--Benchmark.WarmupSeconds=2 --Benchmark.MeasureSeconds=5)
