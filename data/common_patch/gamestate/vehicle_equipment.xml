@@ -108,7 +108,7 @@
 </value></entry>
 <entry><key>VEQUIPMENTTYPE_STASIS_BOMB_LAUNCHER</key>
 <value>
-<stunTicks>288</stunTicks>
+<stunTicks>360</stunTicks>
 <ammo_type>VEQUIPMENTAMMOTYPE_STASIS_BOMB</ammo_type>
 </value></entry>
 <entry><key>VEQUIPMENTTYPE_DISRUPTOR_MULTI-BOMB_FRAGMENT</key>
@@ -141,7 +141,7 @@
 </projectile_sprites>
 <damage>65</damage>
 <accuracy>90</accuracy>
-<fire_delay>90</fire_delay>
+<fire_delay>113</fire_delay>
 <tail_size>20</tail_size>
 <guided>true</guided>
 <turn_rate>28</turn_rate>

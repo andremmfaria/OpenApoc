@@ -4,7 +4,20 @@
 #include "framework/framework.h"
 #include "framework/modinfo.h"
 #include "framework/options.h"
+#include "game/state/battle/ai/unitai.h"
+#include "game/state/battle/ai/unitaidefault.h"
+#include "game/state/battle/ai/unitailowmorale.h"
+#include "game/state/battle/ai/unitaivanilla.h"
 #include "game/state/battle/battle.h"
+#include "game/state/battle/battledoor.h"
+#include "game/state/battle/battleexplosion.h"
+#include "game/state/battle/battlehazard.h"
+#include "game/state/battle/battleitem.h"
+#include "game/state/battle/battlemappart.h"
+#include "game/state/battle/battlescanner.h"
+#include "game/state/battle/battleunit.h"
+#include "game/state/battle/battleunitmission.h"
+#include "game/state/city/agentmission.h"
 #include "game/state/city/base.h"
 #include "game/state/city/building.h"
 #include "game/state/city/city.h"
@@ -32,6 +45,9 @@
 #include "game/state/rules/city/vammotype.h"
 #include "game/state/rules/city/vehicletype.h"
 #include "game/state/rules/doodadtype.h"
+#include "game/state/shared/aequipment.h"
+#include "game/state/shared/agent.h"
+#include "game/state/shared/doodad.h"
 #include "game/state/shared/organisation.h"
 #include "game/state/shared/projectile.h"
 #include "game/state/tilemap/tilemap.h"
@@ -1898,5 +1914,331 @@ bool GameState::appendGameState(const UString &gamestatePath)
 	LogInfo("Appending gamestate \"{0}\"", gamestatePath);
 	auto systemPath = fw().data->fs.resolvePath(gamestatePath);
 	return this->loadGame(systemPath);
+}
+
+namespace
+{
+// Rescales one tick-denominated field in place by the current TICKS_MULTIPLIER over the value it
+// had when CURRENT_SAVE_FORMAT_VERSION was last bumped for a tick-rate change (currently 5/4).
+// Round-half-up, matching GameState::rescaleBakedTickData()'s convention; safe for T in
+// {int, unsigned, unsigned int, uint64_t} since every field this is applied to is semantically
+// non-negative (verified per-field below).
+template <typename T> void rescaleTickField(T &field)
+{
+	field = static_cast<T>((static_cast<int64_t>(field) * 5 + 2) / 4);
+}
+
+void rescaleAEquipmentInstance(AEquipment &eq)
+{
+	rescaleTickField(eq.recharge_ticks_accumulated);
+	rescaleTickField(eq.weapon_fire_ticks_remaining);
+	rescaleTickField(eq.triggerDelay);
+}
+
+void rescaleCargoInstance(Cargo &cargo) { rescaleTickField(cargo.expirationDate); }
+
+void rescaleProjectileInstance(Projectile &projectile)
+{
+	// age/lifetime are excluded: they are voxels travelled, not ticks (projectile.cpp
+	// Projectile::update() advances age by distance, not by `ticks`).
+	rescaleTickField(projectile.delay_ticks_remaining);
+	rescaleTickField(projectile.stunTicks);
+	rescaleTickField(projectile.ownerInvulnerableTicks);
+}
+
+void rescaleDoodadInstance(Doodad &doodad)
+{
+	// Unlike DoodadType::lifetime/DoodadFrame::time (which stay in vanilla units and are
+	// converted live via VANILLA_TO_TICKS at use, so need no migration), a live Doodad's own
+	// age/lifetime are already-converted tick counts (doodad.cpp: `lifetime = type->lifetime *
+	// VANILLA_TO_TICKS`, `age += ticks`).
+	rescaleTickField(doodad.age);
+	rescaleTickField(doodad.lifetime);
+}
+} // namespace
+
+// Rescales every tick-denominated field in a just-deserialized state by 5/4 when it was written
+// under the old (144 TPS, TICKS_MULTIPLIER==4) tick rate. The owner decided existing player saves
+// must keep working unmodified by this change, so this migrates in place rather than rejecting
+// (see the git history of CURRENT_SAVE_FORMAT_VERSION's comment in gamestate.h for the earlier,
+// superseded reject-based approach).
+//
+// Completeness methodology: the inventory below was derived from gamestate_serialize.xml (the
+// authoritative record of what is actually persisted). Every one of the XML's ~1132 <member>
+// entries across its 103 serialized classes whose name contains "tick" (case-insensitive) was
+// extracted first (56 fields across 25 classes), then cross-referenced against each field's
+// C++ declaration and call sites to confirm it is really a raw tick count (as opposed to, say,
+// a vanilla-unit or man-hour value that merely has "tick" as a red herring - none did). A
+// second pass then searched for tick-denominated fields whose name does NOT contain "tick" -
+// every `uint64_t` and `GameTime`-typed field in game/state - and traced each one's
+// construction/comparison sites individually. That pass found real fields the substring search
+// missed (Agent::hiredOn, Vehicle::shieldRecharge, AEquipment::triggerDelay, Cargo::expirationDate,
+// Organisation::RaidMission::time, Building::timeOfLastAttackEvent, BattleScanner::movementTicks,
+// Battle::ticksWithoutSeenAction, Battle::reinforcementsInterval, the per-subtype UnitAI/
+// TacticalAI fields) and one case where a "tick"-shaped name is NOT a tick count at all:
+// BattleHazard::age/lifetime look exactly like Doodad::age/lifetime, but battlehazard.cpp's
+// updateInner() advances them in fixed small steps once per TICKS_PER_HAZARD_UPDATE (a real-tick
+// accumulator that IS rescaled below), not by raw ticks directly - so they are counters of
+// hazard-update cycles, not ticks, and were confirmed to need no rescale.
+//
+// This inventory was independently cross-checked against an earlier compilation of
+// tick-denominated fields: every field that compilation named was found here too
+// (RecurringMission::time and MissionPattern::min/maxIntervalRepeat are deliberately NOT
+// rescaled by this function - they are baked ruleset data handled by
+// GameState::rescaleBakedTickData(), keyed on dataVersion instead of the save format version,
+// and rescaling them here too would double-scale them). This function additionally rescales
+// fields that earlier compilation did not name: Organisation::RaidMission::time (dynamically
+// generated during play from state.gameTime.getTicks(), not extractor-baked, and structurally
+// identical to RecurringMission::time, which that compilation did name),
+// Building::timeOfLastAttackEvent, BattleScanner::movementTicks/updateTicksAccumulated,
+// Battle::reinforcementsInterval, and Vehicle::shieldRecharge/AEquipment::triggerDelay/
+// Cargo::expirationDate (all confirmed tick-denominated per the methodology above). Fields
+// that earlier compilation excluded were independently re-verified against their actual
+// source rather than taken on trust: Facility/
+// FacilityType::buildTime (decremented once per GameState::updateEndOfDay(), i.e. days),
+// ResearchTopic::man_hours/man_hours_progress/Lab::manufacture_man_hours_invested (abstract
+// man-hours; research.cpp converts real ticks via TICKS_PER_HOUR/skill live, so man_hours itself
+// never needs rescaling), Organisation::infiltrationValue/infiltrationHistory/infiltrationSpeed
+// and OrganisationRaid::nextRaidTimer (a day-counter, organisation.cpp decrements it by 1 per
+// call, never compared against ticks), AgentStats::time_units (Time Units, a per-turn currency),
+// HazardType::minLifetime/maxLifetime (small hand-authored numbers consumed by
+// HazardType::getLifetime() with no tick conversion - they feed BattleHazard::lifetime, which per
+// the update-cycle-counter finding above needs no rescale either), BattleMapPartType::
+// fire_burn_time (raw seconds, multiplied live by TICKS_PER_SECOND at the comparison site), and
+// Projectile::age/lifetime (voxels travelled).
+void GameState::migrateSaveFormat(unsigned int fromVersion)
+{
+	if (fromVersion >= CURRENT_SAVE_FORMAT_VERSION)
+	{
+		return;
+	}
+	LogWarning("Save format version {0} predates the 180 TPS tick rate (current version {1}) - "
+	           "rescaling every tick-denominated field by 5/4",
+	           fromVersion, CURRENT_SAVE_FORMAT_VERSION);
+
+	rescaleTickField(gameTime.ticks);
+	rescaleTickField(gameTimeBeforeBattle.ticks);
+	rescaleTickField(nextInvasion);
+
+	for (auto &message : messages)
+	{
+		rescaleTickField(message.time.ticks);
+	}
+	for (auto &message : cityMessages)
+	{
+		rescaleTickField(message.time.ticks);
+	}
+
+	for (auto &pair : agents)
+	{
+		auto &agent = pair.second;
+		rescaleTickField(agent->hiredOn.ticks);
+		rescaleTickField(agent->trainingPhysicalTicksAccumulated);
+		rescaleTickField(agent->trainingPsiTicksAccumulated);
+		rescaleTickField(agent->teleportTicksAccumulated);
+		for (auto &mission : agent->missions)
+		{
+			rescaleTickField(mission.timeToSnooze);
+		}
+		for (auto &equipment : agent->equipment)
+		{
+			rescaleAEquipmentInstance(*equipment);
+		}
+	}
+
+	for (auto &pair : vehicles)
+	{
+		auto &vehicle = pair.second;
+		rescaleTickField(vehicle->ticksToTurn);
+		rescaleTickField(vehicle->shieldRecharge);
+		rescaleTickField(vehicle->stunTicksRemaining);
+		rescaleTickField(vehicle->fuelSpentTicks);
+		rescaleTickField(vehicle->cloakTicksAccumulated);
+		rescaleTickField(vehicle->teleportTicksAccumulated);
+		rescaleTickField(vehicle->ticksAutoActionAvailable);
+		for (auto &mission : vehicle->missions)
+		{
+			rescaleTickField(mission.timeToSnooze);
+		}
+		for (auto &equipment : vehicle->equipment)
+		{
+			rescaleTickField(equipment->reloadTime);
+		}
+		for (auto &cargo : vehicle->cargo)
+		{
+			rescaleCargoInstance(cargo);
+		}
+	}
+
+	for (auto &pair : buildings)
+	{
+		auto &building = pair.second;
+		rescaleTickField(building->timeOfLastAttackEvent);
+		rescaleTickField(building->ticksDetectionTimeOut);
+		rescaleTickField(building->ticksDetectionAttemptAccumulated);
+		for (auto &cargo : building->cargo)
+		{
+			rescaleCargoInstance(cargo);
+		}
+	}
+
+	for (auto &pair : organisations)
+	{
+		auto &org = pair.second;
+		rescaleTickField(org->ticksTakeOverAttemptAccumulated);
+		// org->recurring_missions is baked ruleset data (extract_organisations.cpp), rescaled
+		// separately by rescaleBakedTickData() - not here, to avoid double-scaling it.
+		for (auto &cityMissions : org->raid_missions)
+		{
+			for (auto &mission : cityMissions.second)
+			{
+				rescaleTickField(mission.time);
+			}
+		}
+	}
+
+	for (auto &pair : cities)
+	{
+		auto &city = pair.second;
+		for (auto &scenery : city->scenery)
+		{
+			rescaleTickField(scenery->ticksUntilCollapse);
+		}
+		for (auto &doodad : city->doodads)
+		{
+			rescaleDoodadInstance(*doodad);
+		}
+		for (auto &projectile : city->projectiles)
+		{
+			rescaleProjectileInstance(*projectile);
+		}
+	}
+
+	for (auto &pair : research.labs)
+	{
+		rescaleTickField(pair.second->ticks_since_last_progress);
+	}
+
+	if (current_battle)
+	{
+		auto &battle = *current_battle;
+		rescaleTickField(battle.ticksWithoutAction);
+		for (auto &pair : battle.ticksWithoutSeenAction)
+		{
+			rescaleTickField(pair.second);
+		}
+		rescaleTickField(battle.ticksUntilNextReinforcement);
+		rescaleTickField(battle.missionEndTimer);
+		rescaleTickField(battle.reinforcementsInterval);
+		rescaleTickField(battle.aiBlock.ticksLastThink);
+		rescaleTickField(battle.aiBlock.ticksUntilReThink);
+
+		for (auto &pair : battle.units)
+		{
+			auto &unit = pair.second;
+			rescaleTickField(unit->ticksUntillNextTargetCheck);
+			rescaleTickField(unit->ticksAccumulatedToNextPsiCheck);
+			rescaleTickField(unit->woundTicksAccumulated);
+			rescaleTickField(unit->regenTicksAccumulated);
+			rescaleTickField(unit->enzymeDebuffTicksAccumulated);
+			rescaleTickField(unit->fireDebuffTicksAccumulated);
+			rescaleTickField(unit->fireDebuffTicksRemaining);
+			rescaleTickField(unit->moraleStateTicksRemaining);
+			rescaleTickField(unit->moraleTicksAccumulated);
+			rescaleTickField(unit->cloakTicksAccumulated);
+			rescaleTickField(unit->ticksUntillNextCry);
+			rescaleTickField(unit->collisionIgnoredTicks);
+			rescaleTickField(unit->body_animation_ticks_remaining);
+			rescaleTickField(unit->body_animation_ticks_total);
+			rescaleTickField(unit->body_animation_ticks_static);
+			rescaleTickField(unit->hand_animation_ticks_remaining);
+			rescaleTickField(unit->residual_aiming_ticks_remaining);
+			rescaleTickField(unit->firing_animation_ticks_remaining);
+			rescaleTickField(unit->movement_ticks_passed);
+			rescaleTickField(unit->turning_animation_ticks_remaining);
+
+			for (auto &mission : unit->missions)
+			{
+				rescaleTickField(mission->timeToSnooze);
+				rescaleTickField(mission->brainsuckTicksAccumulated);
+			}
+
+			rescaleTickField(unit->aiList.ticksLastThink);
+			rescaleTickField(unit->aiList.ticksLastOutOfOrderThink);
+			rescaleTickField(unit->aiList.ticksUntilReThink);
+			for (auto &ai : unit->aiList.aiList)
+			{
+				if (auto lowMorale = std::dynamic_pointer_cast<UnitAILowMorale>(ai))
+				{
+					rescaleTickField(lowMorale->ticksActionAvailable);
+				}
+				else if (auto defaultAi = std::dynamic_pointer_cast<UnitAIDefault>(ai))
+				{
+					rescaleTickField(defaultAi->ticksAutoTurnAvailable);
+					rescaleTickField(defaultAi->ticksAutoTargetAvailable);
+				}
+				else if (auto vanillaAi = std::dynamic_pointer_cast<UnitAIVanilla>(ai))
+				{
+					rescaleTickField(vanillaAi->ticksLastThink);
+					rescaleTickField(vanillaAi->ticksUntilReThink);
+				}
+			}
+		}
+
+		for (auto &item : battle.items)
+		{
+			rescaleTickField(item->ownerInvulnerableTicks);
+			rescaleTickField(item->collisionIgnoredTicks);
+			rescaleTickField(item->ticksUntilCollapse);
+			if (item->item)
+			{
+				rescaleAEquipmentInstance(*item->item);
+			}
+		}
+
+		for (auto &hazard : battle.hazards)
+		{
+			// age/lifetime deliberately excluded, see this function's top comment.
+			rescaleTickField(hazard->ticksUntilVisible);
+			rescaleTickField(hazard->frameChangeTicksAccumulated);
+			rescaleTickField(hazard->nextUpdateTicksAccumulated);
+		}
+
+		for (auto &explosion : battle.explosions)
+		{
+			rescaleTickField(explosion->ticksUntilExpansion);
+		}
+
+		for (auto &mapPart : battle.map_parts)
+		{
+			rescaleTickField(mapPart->ticksUntilCollapse);
+			rescaleTickField(mapPart->burnTicksAccumulated);
+		}
+
+		for (auto &pair : battle.doors)
+		{
+			rescaleTickField(pair.second->openTicksRemaining);
+			rescaleTickField(pair.second->animationTicksRemaining);
+		}
+
+		for (auto &projectile : battle.projectiles)
+		{
+			rescaleProjectileInstance(*projectile);
+		}
+
+		for (auto &pair : battle.scanners)
+		{
+			for (auto &cell : pair.second->movementTicks)
+			{
+				rescaleTickField(cell);
+			}
+			rescaleTickField(pair.second->updateTicksAccumulated);
+		}
+
+		for (auto &doodad : battle.doodads)
+		{
+			rescaleDoodadInstance(*doodad);
+		}
+	}
 }
 }; // namespace OpenApoc
