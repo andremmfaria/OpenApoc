@@ -15,17 +15,22 @@
 #include <vector>
 
 // How many in-game ticks are required to travel one in-game unit for battleunits
-#define TICKS_PER_UNIT_TRAVELLED_BATTLEUNIT 32
-// How many in-game ticks are required to pass 1 animation frame
-#define TICKS_PER_FRAME_UNIT 8
+// (scaled by TICKS_MULTIPLIER/4 alongside TICKS_PER_SECOND to keep the real-seconds-per-unit
+// rate this was tuned at unchanged)
+#define TICKS_PER_UNIT_TRAVELLED_BATTLEUNIT 40
+// How many in-game ticks are required to pass 1 animation frame (scaled with TICKS_PER_SECOND,
+// see TICKS_PER_UNIT_TRAVELLED_BATTLEUNIT above)
+#define TICKS_PER_FRAME_UNIT 10
 // Every this amount of units travelled, unit will emit an appropriate sound
 #define UNITS_TRAVELLED_PER_SOUND 12
 // If running, unit will only emit sound every this number of times it normally would
 #define UNITS_TRAVELLED_PER_SOUND_RUNNING_DIVISOR 2
 // This defines how fast a flying unit accelerates to full speed
 #define FLYING_ACCELERATION_DIVISOR 2
-// A bit faster than items
-#define FALLING_ACCELERATION_UNIT 0.16666667f // 1/6th
+// A bit faster than items. Per-tick acceleration, scaled by 4/(TICKS_MULTIPLIER) so that
+// acceleration-per-real-second (this value * TICKS_PER_SECOND) stays invariant across
+// TICKS_MULTIPLIER changes.
+#define FALLING_ACCELERATION_UNIT 0.13333333f // 2/15th (was 1/6th at TICKS_MULTIPLIER==4)
 // How far should unit spread information about seeing an enemy
 #define DISTANCE_TO_RELAY_VISIBLE_ENEMY_INFORMATION 5
 // How far does unit see
@@ -50,7 +55,10 @@ static const unsigned TICKS_PER_LOWMORALE_STATE = TICKS_PER_TURN;
 static const unsigned LOWMORALE_CHECK_INTERVAL = TICKS_PER_TURN;
 // How frequently unit tracks its target
 static const unsigned LOS_CHECK_INTERVAL_TRACKING = TICKS_PER_SECOND / 4;
-// How many ticks to skip after weapon that was ready to fire could not fire
+// How many ticks to skip after weapon that was ready to fire could not fire.
+// TICKS_PER_SECOND is not guaranteed divisible by 16 (180/16 = 11.25, truncating to 11): accepted
+// rather than re-expressed as a divisor-safe fraction, since a sub-3% drift in a brief
+// once-per-misfire delay is not worth the extra complexity.
 static const unsigned WEAPON_MISFIRE_DELAY_TICKS = TICKS_PER_SECOND / 16;
 // How many times to wait for MIA target to come back before giving up
 static const unsigned TIMES_TO_WAIT_FOR_MIA_TARGET =

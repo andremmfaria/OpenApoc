@@ -271,10 +271,13 @@ static bool test_ticks_in_one_clamp_matches_hand_computed_values()
 		uint64_t expectedCeiling;
 		const char *name;
 	};
+	// Values at VANILLA_TO_TICKS==5 (180 TPS); each is the old VANILLA_TO_TICKS==4 (144 TPS)
+	// value scaled by 5/4 and re-floored by ticksInOneClamp (city Speed1..4:
+	// 18/36/72/109 -> 22/45/91/136; battle Speed1..3: 9/18/36 -> 11/22/45).
 	static const Case cases[] = {
-	    {1, 1, 18, "city Speed1"},   {2, 1, 36, "city Speed2"},  {4, 1, 72, "city Speed3"},
-	    {6, 1, 109, "city Speed4"},  {1, 2, 9, "battle Speed1"}, {1, 1, 18, "battle Speed2"},
-	    {2, 1, 36, "battle Speed3"},
+	    {1, 1, 22, "city Speed1"},   {2, 1, 45, "city Speed2"},   {4, 1, 91, "city Speed3"},
+	    {6, 1, 136, "city Speed4"},  {1, 2, 11, "battle Speed1"}, {1, 1, 22, "battle Speed2"},
+	    {2, 1, 45, "battle Speed3"},
 	};
 	bool ok = true;
 	for (const auto &c : cases)
@@ -358,13 +361,18 @@ static bool test_turbo_rate_fps_independent()
 }
 
 // Legacy speeds preserve the old ticksPerFrameAt60fps
-// multiplied by 60, not the old per-rendered-frame minting. Duplicated here from
-// cityview.cpp's legacyCityTickRate/legacyBattleTickRate (both anonymous-namespace, not
-// reachable from a unit test) the same way the tests above duplicate vanillaTickRate's
-// city/battle ratios instead of calling the view's own dispatch functions.
+// multiplied by the "assumed 60 FPS" conversion factor, not the old per-rendered-frame
+// minting. Duplicated here from cityview.cpp's legacyCityTickRate/legacyBattleTickRate
+// (both anonymous-namespace, not reachable from a unit test) the same way the tests above
+// duplicate vanillaTickRate's city/battle ratios instead of calling the view's own dispatch
+// functions. The conversion factor is 75, not 60: unlike ticksPerFrameAt60fps itself (which
+// just counts old-OpenApoc rendered frames, not ticks), this factor produces a
+// ticks-per-second count that must scale with TICKS_MULTIPLIER to keep landing on the same
+// game-seconds-per-real-second target as TICKS_PER_SECOND changes - see the matching comment
+// on cityview.cpp's LEGACY_TURBO_TICKS_PER_FRAME_AT_60FPS.
 uint64_t legacyRateTicksPerSecond(uint64_t ticksPerFrameAt60fps)
 {
-	return ticksPerFrameAt60fps * 60ull;
+	return ticksPerFrameAt60fps * 75ull;
 }
 
 // Requirement 3 is the one most likely to be got wrong: legacy must be frame-rate
@@ -400,20 +408,21 @@ static bool test_legacy_city_tier_fps_independent()
 			ok = false;
 		}
 	}
-	// The rate itself must land exactly on the old 60 FPS speed: 6 ticks/frame * 60 FPS =
-	// 360 ticks/s. Checked against the exact rate, not the simulated referenceRate above,
-	// since discrete frame cadences that don't divide totalUs evenly (e.g. 30 FPS's
-	// 33333us frames) leave a small quantization error in the simulated figure.
-	if (rateNumerator != 360)
+	// The rate itself must land exactly on the rescaled old-60-FPS speed: 6 ticks/frame * 75
+	// (see legacyRateTicksPerSecond) = 450 ticks/s. Checked against the exact rate, not the
+	// simulated referenceRate above, since discrete frame cadences that don't divide totalUs
+	// evenly (e.g. 30 FPS's 33333us frames) leave a small quantization error in the
+	// simulated figure.
+	if (rateNumerator != 450)
 	{
-		LogError("test_legacy_city_tier_fps_independent: rate was {0} ticks/s, expected 360",
+		LogError("test_legacy_city_tier_fps_independent: rate was {0} ticks/s, expected 450",
 		         rateNumerator);
 		ok = false;
 	}
 	return ok;
 }
 
-// Legacy battle {0,1,2,4} at 60 FPS, same treatment.
+// Legacy battle {0,1,2,4} at the rescaled old-60-FPS conversion factor, same treatment.
 static bool test_legacy_battle_tiers_match_60fps_targets()
 {
 	struct Target
@@ -423,9 +432,9 @@ static bool test_legacy_battle_tiers_match_60fps_targets()
 		const char *name;
 	};
 	static const Target targets[] = {
-	    {1, 60, "Speed1"},
-	    {2, 120, "Speed2"},
-	    {4, 240, "Speed3"},
+	    {1, 75, "Speed1"},
+	    {2, 150, "Speed2"},
+	    {4, 300, "Speed3"},
 	};
 	bool ok = true;
 	for (const auto &t : targets)
@@ -443,8 +452,8 @@ static bool test_legacy_battle_tiers_match_60fps_targets()
 }
 
 // Legacy turbo must land on exactly 18,000 game-seconds per real second (43,200
-// ticks/frame * 60 FPS = 2,592,000 ticks/s; 2,592,000 / TICKS_PER_SECOND = 18,000), and
-// that must hold at every frame rate, not just 60 FPS.
+// ticks/frame * 75 (see legacyRateTicksPerSecond) = 3,240,000 ticks/s; 3,240,000 /
+// TICKS_PER_SECOND = 18,000), and that must hold at every frame rate, not just 60 FPS.
 static bool test_legacy_turbo_matches_18000_target()
 {
 	const uint64_t legacyTurboTicksPerFrameAt60fps = 43200;
@@ -520,7 +529,7 @@ static bool test_default_path_unchanged_by_legacy_option()
 		ok = false;
 	}
 
-	// The corrected and legacy city Speed4 rates must differ (72.826 vs 360 ticks/s) -
+	// The corrected and legacy city Speed4 rates must differ (91.03 vs 450 ticks/s) -
 	// otherwise the two tables would not actually be distinct options.
 	if (nearlyEqual(speed4TicksPerSecond, legacyRateTicksPerSecond(6), 0.01))
 	{

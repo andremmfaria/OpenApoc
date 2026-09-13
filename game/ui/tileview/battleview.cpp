@@ -93,7 +93,10 @@ static const int NUM_TABS_TB = 4;
 // fixed tick count per rendered frame - {0,1,2,4} - calibrated at an assumed 60 FPS
 // baseline, the same style HIDE_DISPLAY_RATE_NUMERATOR below uses for its own legacy rate.
 // ticksPerFrameAt60fps * 60 ticks/real-second preserves that speed FPS-independently, per
-// the same reasoning as legacyCityTickRate in cityview.cpp.
+// the same reasoning as legacyCityTickRate in cityview.cpp - including that *60 being *75
+// here (60 * VANILLA_TO_TICKS / 4 = 75): this table IS tied to VANILLA_TO_TICKS, unlike
+// HIDE_DISPLAY_RATE_NUMERATOR, since it exists to reproduce a fixed old game-seconds-per-
+// real-second speed.
 VanillaTickRate legacyBattleTickRate(BattleUpdateSpeed speed)
 {
 	switch (speed)
@@ -101,11 +104,11 @@ VanillaTickRate legacyBattleTickRate(BattleUpdateSpeed speed)
 		case BattleUpdateSpeed::Pause:
 			return VanillaTickRate{0, 1};
 		case BattleUpdateSpeed::Speed1:
-			return VanillaTickRate{1 * 60, 1};
+			return VanillaTickRate{1 * 75, 1};
 		case BattleUpdateSpeed::Speed2:
-			return VanillaTickRate{2 * 60, 1};
+			return VanillaTickRate{2 * 75, 1};
 		case BattleUpdateSpeed::Speed3:
-			return VanillaTickRate{4 * 60, 1};
+			return VanillaTickRate{4 * 75, 1};
 	}
 	return VanillaTickRate{0, 1};
 }

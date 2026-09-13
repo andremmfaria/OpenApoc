@@ -26,7 +26,9 @@ static const unsigned TICKS_CARGO_WARNING = TICKS_PER_HOUR;
 
 // Falling vehicle params
 
-static const float FV_ACCELERATION = 0.16666667f;
+// Per-tick acceleration, scaled by 4/TICKS_MULTIPLIER alongside the battle/item/map-part falling
+// accelerations.
+static const float FV_ACCELERATION = 0.13333333f; // 2/15th (was 1/6th at TICKS_MULTIPLIER==4)
 // How much max damage can colliding with scenery deal to us
 static const float FV_COLLISION_DAMAGE_LIMIT = 10.0f;
 // Minimal collision damage as percentage of health

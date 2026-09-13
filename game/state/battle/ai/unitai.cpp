@@ -11,6 +11,8 @@
 namespace OpenApoc
 {
 
+// TICKS_PER_SECOND is not guaranteed divisible by 8 (180/8 = 22.5, truncating to 22); accepted,
+// see WEAPON_MISFIRE_DELAY_TICKS in battleunit.h for the reasoning.
 static const uint64_t UNIT_AI_THINK_INTERVAL = TICKS_PER_SECOND / 8;
 
 const UString UnitAI::getName()
