@@ -23,66 +23,49 @@ jobs:
         fetch-depth: 0
 
     - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{runner.workspace}}/build
+      run: python3 .github/scripts/cmake.py mkdir --path ${{ runner.workspace }}/build
 
     - name: Download minimal cd image
-      run: wget http://s2.jonnyh.net/pub/cd_minimal.iso.xz -O $GITHUB_WORKSPACE/data/cd.iso.xz
-    
-    - name: Extract minimal cd image
-      run: xz -d $GITHUB_WORKSPACE/data/cd.iso.xz
-
-    - name: Update apt-get repo
-      run: sudo apt-get update
+      run: python3 .github/scripts/cmake.py minimal --output ${{ github.workspace }}/data/cd.iso
 
     - name: Install dependencies
-      run: sudo apt-get install libsdl2-dev cmake build-essential git libunwind8-dev libboost-locale-dev libboost-filesystem-dev libboost-program-options-dev qt6-base-dev libvorbis-dev ninja-build ${CLANG_FORMAT} ${CLANG_TIDY}
+      run: >
+        python3 .github/scripts/cmake.py install
+        --profile lint
+        --extra-package ${{ env.CLANG_FORMAT }}
+        --extra-package ${{ env.CLANG_TIDY }}
 
     - name: Configure CMake
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
-      shell: bash
-      working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -GNinja -DCLANG_FORMAT=${CLANG_FORMAT} -DCLANG_TIDY=${CLANG_TIDY}
+      run: >
+        python3 .github/scripts/cmake.py configure
+        --source ${{ github.workspace }}
+        --build-dir ${{ runner.workspace }}/build
+        --build-type ${{ env.BUILD_TYPE }}
+        --option=-DCLANG_FORMAT=${{ env.CLANG_FORMAT }}
+        --option=-DCLANG_TIDY=${{ env.CLANG_TIDY }}
 
-    - name: Setup Environment (PR)  
-      if: ${{ github.event_name == 'pull_request' }}  
-      shell: bash  
-      run: |  
-        echo "AFTER_COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> ${GITHUB_ENV}  
-        echo "BEFORE_COMMIT_SHA=${{ github.event.pull_request.base.sha }}" >> ${GITHUB_ENV}  
-
-    - name: Setup Environment (Push)  
-      if: ${{ github.event_name == 'push' }}  
-      shell: bash  
-      run: |  
-        echo "AFTER_COMMIT_SHA=${{ github.event.after }}" >> ${GITHUB_ENV}
-        echo "BEFORE_COMMIT_SHA=${{ github.event.before }}" >> ${GITHUB_ENV}
+    - name: Setup lint range
+      env:
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PUSH_AFTER_SHA: ${{ github.event.after }}
+        PUSH_BEFORE_SHA: ${{ github.event.before }}
+      run: python3 .github/scripts/lint.py range
 
     - name: format lint
-      working-directory: ${{runner.workspace}}
-      shell: bash
-      run: |
-        cmake --build ${{runner.workspace}}/build -t format-sources
-        if [[ `git -C $GITHUB_WORKSPACE status --porcelain` ]]; then
-          echo "Format mismatch:";
-          git -C $GITHUB_WORKSPACE diff;
-          exit 1;
-        fi
-        
+      run: python3 .github/scripts/lint.py format --build-dir ${{ runner.workspace }}/build --workspace ${{ github.workspace }}
 
     - name: clang-tidy lint
-      working-directory: ${{runner.workspace}}
-      shell: bash
-      run: |
-        cd $GITHUB_WORKSPACE
-        if [ "${{env.BEFORE_COMMIT_SHA}}" == "0000000000000000000000000000000000000000" ]
-        then
-          echo 'BUILD_DIR=${{runner.workspace}}/build $GITHUB_WORKSPACE/tools/lint-tidy.sh ${{env.AFTER_COMMIT_SHA}} || true;'
-          BUILD_DIR=${{runner.workspace}}/build $GITHUB_WORKSPACE/tools/lint-tidy.sh ${{env.AFTER_COMMIT_SHA}} || true;
-        else
-          echo 'BUILD_DIR=${{runner.workspace}}/build $GITHUB_WORKSPACE/tools/lint-tidy.sh ${{env.BEFORE_COMMIT_SHA}}..${{env.AFTER_COMMIT_SHA}} || true;'
-          BUILD_DIR=${{runner.workspace}}/build $GITHUB_WORKSPACE/tools/lint-tidy.sh ${{env.BEFORE_COMMIT_SHA}}..${{env.AFTER_COMMIT_SHA}} || true;
-        fi
-        
+      env:
+        BUILD_DIR: ${{ runner.workspace }}/build
+      run: python3 .github/scripts/lint.py tidy
+
+    - name: Upload failure logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: lint-logs
+        if-no-files-found: warn
+        path: |
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeOutput.log
+          ${{ runner.workspace }}/build/CMakeFiles/CMakeError.log
