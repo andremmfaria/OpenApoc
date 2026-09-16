@@ -96,6 +96,19 @@ class GroundVehicleTileHelper : public CanEnterTileHelper
 	static constexpr float LANE_OFFSET = 0.25f;
 	static Vec3<float> laneOffset(const Vec3<int> &from, const Vec3<int> &to,
 	                              const Scenery &sceneryTo, const Vehicle &v);
+
+	// How far ahead a vehicle looks for traffic to queue behind. Chosen so that a follower
+	// released at this distance is still a full tile behind the leader when it arrives, which is
+	// what it takes for the two never to share a tile.
+	static constexpr float TRAFFIC_LOOKAHEAD = 1.5f;
+	// Sideways distance within which two vehicles count as sharing a lane. Below the 2 *
+	// LANE_OFFSET separation between opposing lanes, so a vehicle on the other side of the road
+	// is never queued behind.
+	static constexpr float SAME_LANE_TOLERANCE = 0.4f;
+	// Returns the vehicle ahead of "v" that it would queue behind when driving from "from" to
+	// "to", or nullptr when the road ahead is clear.
+	static sp<Vehicle> sameLaneTrafficAhead(const Vehicle &v, const Vec3<int> &from,
+	                                        const Tile &to);
 };
 
 class VehicleTargetHelper
@@ -292,6 +305,11 @@ class VehicleMission
 	bool attackCrashed = false;
 
 	bool cancelled = false;
+
+	// Game time at which this mission first held behind same-lane traffic, 0 when not holding.
+	// Deliberately not serialized: a save made mid-hold simply restarts the wait on load, which
+	// is at most a couple of seconds of a vehicle sitting still.
+	uint64_t trafficHoldStartTicks = 0;
 
 	std::list<Vec3<int>> currentPlannedPath;
 };

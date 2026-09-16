@@ -54,6 +54,12 @@ static const std::map<UString, std::pair<unsigned, unsigned>> selfDestructTimer 
     {"VEHICLETYPE_ALIEN_ESCORT", {15 / 5 * TICKS_PER_MINUTE, 120 / 5 * TICKS_PER_MINUTE}},
     {"VEHICLETYPE_ALIEN_BATTLESHIP", {60 / 5 * TICKS_PER_MINUTE, 240 / 5 * TICKS_PER_MINUTE}},
     {"VEHICLETYPE_ALIEN_MOTHERSHIP", {60 / 5 * TICKS_PER_MINUTE, 240 / 5 * TICKS_PER_MINUTE}}};
+
+// A ground vehicle waits at most this long behind same-lane traffic before driving on anyway,
+// so a parked or otherwise permanently stopped blocker can never stall a follower for good.
+// Well over the time the slowest road vehicle needs to clear the tile ahead of a follower, so a
+// queue that is genuinely moving never trips it.
+static const uint64_t trafficHoldMaxTicks = 8 * TICKS_PER_SECOND;
 } // namespace
 
 FlyingVehicleTileHelper::FlyingVehicleTileHelper(TileMap &map, const Vehicle &v)
@@ -2958,6 +2964,33 @@ bool VehicleMission::advanceAlongPath(GameState &state, Vehicle &v, Vec3<float> 
 		}
 	}
 
+	// Queue behind traffic already using our lane instead of driving through it. This has to run
+	// after the shortcut above, which is what settles on the tile actually being driven to.
+	if (v.type->isGround())
+	{
+		if (GroundVehicleTileHelper::sameLaneTrafficAhead(v, tFrom->position, *tTo))
+		{
+			if (trafficHoldStartTicks == 0)
+			{
+				trafficHoldStartTicks = state.gameTime.getTicks();
+			}
+			if (state.gameTime.getTicks() - trafficHoldStartTicks < trafficHoldMaxTicks)
+			{
+				// Hold position for this update. Putting the tile we are standing on back at the
+				// front of the path leaves it exactly as a fresh call expects to find it, so the
+				// next update re-resolves the same hop.
+				currentPlannedPath.push_front(tFrom->position);
+				return false;
+			}
+			// Waited long enough for a blocker that is not going to move. Drive on as before.
+			trafficHoldStartTicks = 0;
+		}
+		else
+		{
+			trafficHoldStartTicks = 0;
+		}
+	}
+
 	// Advance tiles in turbo mode
 	while (turboTiles > 0 && currentPlannedPath.size() > 1)
 	{
@@ -3603,6 +3636,62 @@ Vec3<float> GroundVehicleTileHelper::laneOffset(const Vec3<int> &from, const Vec
 	Vec3<int> dir = to - from;
 	float sign = config().getBool("OpenApoc.NewFeature.DriveOnLeft") ? -1.0f : 1.0f;
 	return {-(float)dir.y * LANE_OFFSET * sign, (float)dir.x * LANE_OFFSET * sign, 0.0f};
+}
+
+sp<Vehicle> GroundVehicleTileHelper::sameLaneTrafficAhead(const Vehicle &v, const Vec3<int> &from,
+                                                          const Tile &to)
+{
+	if (!config().getBool("OpenApoc.NewFeature.TwoWayRoads") || from == to.position)
+	{
+		return nullptr;
+	}
+	Vec2<float> ourDir = {(float)(to.position.x - from.x), (float)(to.position.y - from.y)};
+	// Ground vehicles drive centre to centre, so a vehicle owns the tile it is entering only once
+	// it is half a tile into it. Scanning the destination tile alone therefore misses a vehicle
+	// barely half a tile ahead, which is exactly the one worth queueing behind; the tile being
+	// left has to be scanned too.
+	const Tile *tiles[] = {v.tileObject->getOwningTile(), &to};
+	for (const Tile *tile : tiles)
+	{
+		for (auto &obj : tile->ownedObjects)
+		{
+			if (obj->getType() != TileObject::Type::Vehicle)
+			{
+				continue;
+			}
+			auto other = std::static_pointer_cast<TileObjectVehicle>(obj)->getVehicle();
+			// Wrecks are driven through exactly as before, so a wreck never stalls the queue
+			// behind it. Flyers share tiles with road traffic but are not part of it.
+			if (!other || other.get() == &v || !other->type->isGround() || other->crashed ||
+			    other->falling || other->sliding)
+			{
+				continue;
+			}
+			Vec2<float> gap = {other->position.x - v.position.x, other->position.y - v.position.y};
+			float ahead = gap.x * ourDir.x + gap.y * ourDir.y;
+			float sideways = gap.x * -ourDir.y + gap.y * ourDir.x;
+			if (ahead <= 0.0f || ahead > TRAFFIC_LOOKAHEAD ||
+			    std::abs(sideways) > SAME_LANE_TOLERANCE)
+			{
+				continue;
+			}
+			Vec2<float> otherDir = {other->velocity.x, other->velocity.y};
+			if (otherDir.x == 0.0f && otherDir.y == 0.0f)
+			{
+				// Standing still in our lane, so it is an obstacle rather than traffic. The hold
+				// is time limited, so a permanently parked vehicle is eventually driven past.
+				return other;
+			}
+			// Only traffic heading the same way queues. Oncoming traffic is already held apart by
+			// the lane offset, and two vehicles crossing at a junction would wait on each other
+			// forever if they queued.
+			if (ourDir.x * otherDir.x + ourDir.y * otherDir.y > 0.0f)
+			{
+				return other;
+			}
+		}
+	}
+	return nullptr;
 }
 
 } // namespace OpenApoc

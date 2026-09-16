@@ -10,6 +10,7 @@
 #include "game/state/rules/city/vehicletype.h"
 #include "game/state/tilemap/tile.h"
 #include "game/state/tilemap/tilemap.h"
+#include <glm/glm.hpp>
 #include <iostream>
 
 using namespace OpenApoc;
@@ -192,6 +193,144 @@ void testLaneSeparation()
 	      "lane separation: opposing vehicles use opposite lanes");
 }
 
+struct FollowerRun
+{
+	bool valid = false;
+	// Updates on which the follower sat in the leader's tile on the leader's own side of the road
+	// while the leader was still moving.
+	int sameLaneOverlaps = 0;
+	// Updates on which the follower drove on the side of the road opposite to the leader.
+	int opposingLaneSamples = 0;
+	// Updates on which the two were close enough for the follower to be queueing at all.
+	int closeSamples = 0;
+	bool followerAhead = false;
+};
+
+// Puts a slow leader one tile in front of a faster follower on a straight road and sends both to
+// the far end of it, recording how the follower behaves while it is caught up behind the leader.
+FollowerRun runFollowerScenario(bool twoWayRoads, int runLength, int updates)
+{
+	FollowerRun result;
+
+	config().set("OpenApoc.NewFeature.TwoWayRoads", twoWayRoads);
+
+	auto state = loadState();
+	if (!state)
+	{
+		return result;
+	}
+
+	StraightRun run;
+	if (!findStraightRoadRun(*state, runLength, run))
+	{
+		LogError("follower scenario: no straight road run of {0} tiles", runLength);
+		return result;
+	}
+
+	// Road vehicle types carry no top_speed of their own - all of it comes from the engine the
+	// vehicle is built with - so the pair is chosen by name and the speed gap checked once placed.
+	StateRef<VehicleType> slowType{state.get(), UString("VEHICLETYPE_AUTOTRANS")};
+	StateRef<VehicleType> fastType{state.get(), UString("VEHICLETYPE_BLAZER_TURBO_BIKE")};
+	if (!slowType || !fastType)
+	{
+		LogError("follower scenario: expected road vehicle types missing");
+		return result;
+	}
+
+	auto &map = *state->current_city->map;
+	Vec3<int> target = run.tiles.back();
+
+	auto follower = state->current_city->placeVehicle(
+	    *state, fastType, state->getPlayer(), map.getTile(run.tiles[0])->getRestingPosition());
+	auto leader = state->current_city->placeVehicle(
+	    *state, slowType, state->getPlayer(), map.getTile(run.tiles[1])->getRestingPosition());
+	if (!follower || !leader)
+	{
+		LogError("follower scenario: failed to place vehicles");
+		return result;
+	}
+
+	if (follower->getSpeed() <= leader->getSpeed())
+	{
+		LogError("follower scenario: follower speed {0} does not exceed leader speed {1}",
+		         follower->getSpeed(), leader->getSpeed());
+		return result;
+	}
+	LogWarning("follower scenario: leader speed {0}, follower speed {1}", leader->getSpeed(),
+	           follower->getSpeed());
+
+	leader->setMission(*state, VehicleMission::gotoLocation(*state, *leader, target));
+	follower->setMission(*state, VehicleMission::gotoLocation(*state, *follower, target));
+
+	Vec3<float> axis = {(float)run.dir.x, (float)run.dir.y, 0.0f};
+
+	for (int i = 0; i < updates; i++)
+	{
+		state->update(TICKS_PER_SECOND / 4);
+		// Once either vehicle parks on the shared destination the other simply arrives on top of
+		// it, which says nothing about how traffic behaves en route.
+		if (!follower->tileObject || !leader->tileObject || follower->missions.empty() ||
+		    leader->missions.empty())
+		{
+			break;
+		}
+
+		Vec3<int> followerTile = follower->position;
+		Vec3<int> leaderTile = leader->position;
+		float followerLateral = lateralOffset(follower->position, followerTile, run.dir);
+		float leaderLateral = lateralOffset(leader->position, leaderTile, run.dir);
+		bool opposingLanes = followerLateral * leaderLateral < -0.01f;
+		bool leaderMoving = glm::length(leader->velocity) > 0.001f;
+
+		Vec3<float> gap = follower->position - leader->position;
+		if (std::abs(gap.x * axis.x + gap.y * axis.y) < 2.0f)
+		{
+			result.closeSamples++;
+		}
+		if (opposingLanes)
+		{
+			result.opposingLaneSamples++;
+		}
+		if (followerTile == leaderTile && leaderMoving && !opposingLanes)
+		{
+			result.sameLaneOverlaps++;
+		}
+		if (gap.x * axis.x + gap.y * axis.y > 0.5f)
+		{
+			result.followerAhead = true;
+		}
+	}
+
+	result.valid = true;
+	config().set("OpenApoc.NewFeature.TwoWayRoads", true);
+	return result;
+}
+
+// A faster vehicle must queue behind a slower one in its own lane instead of driving through it.
+void testEnRouteBlocking()
+{
+	auto on = runFollowerScenario(true, 12, 600);
+	if (!check(on.valid, "en-route blocking: scenario ran with TwoWayRoads on"))
+	{
+		return;
+	}
+	LogWarning("en-route blocking: TwoWayRoads on -> sameLaneOverlaps = {0}, closeSamples = {1}",
+	           on.sameLaneOverlaps, on.closeSamples);
+	check(on.closeSamples > 0, "en-route blocking: the follower actually caught the leader");
+	check(on.sameLaneOverlaps == 0,
+	      "en-route blocking: the follower never shares the moving leader's tile in its lane");
+
+	auto off = runFollowerScenario(false, 12, 600);
+	if (!check(off.valid, "en-route blocking: scenario ran with TwoWayRoads off"))
+	{
+		return;
+	}
+	LogWarning("en-route blocking: TwoWayRoads off -> sameLaneOverlaps = {0}, closeSamples = {1}",
+	           off.sameLaneOverlaps, off.closeSamples);
+	check(off.sameLaneOverlaps > 0,
+	      "en-route blocking: with the option off the follower drives through the leader");
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -216,6 +355,7 @@ int main(int argc, char **argv)
 	Framework fw("OpenApoc", false);
 
 	testLaneSeparation();
+	testEnRouteBlocking();
 
 	if (failures > 0)
 	{
