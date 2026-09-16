@@ -36,6 +36,7 @@ static const std::list<std::pair<UString, UString>> cityscapeList = {
     {"OpenApoc.NewFeature", "CrashingGroundVehicles"},
     {"OpenApoc.NewFeature", "TwoWayRoads"},
     {"OpenApoc.NewFeature", "DriveOnLeft"},
+    {"OpenApoc.NewFeature", "VehicleCollisions"},
     {"OpenApoc.NewFeature", "OpenApocCityControls"},
     {"OpenApoc.NewFeature", "CollapseRaidedBuilding"},
     {"OpenApoc.NewFeature", "ScrambleOnUnintentionalHit"},

@@ -368,6 +368,104 @@ void testOvertaking()
 	check(on.followerAhead, "overtaking: the follower finished the pass in front of the leader");
 }
 
+struct HeadOnRun
+{
+	bool valid = false;
+	int forwardHits = 0;
+	int backwardHits = 0;
+};
+
+// Drives two vehicles into each other on one centre line with lanes turned off, which is the
+// simplest way to make two ground vehicles actually touch.
+HeadOnRun runHeadOnScenario(bool collisions)
+{
+	HeadOnRun result;
+
+	config().set("OpenApoc.NewFeature.TwoWayRoads", false);
+	config().set("OpenApoc.NewFeature.VehicleCollisions", collisions);
+
+	auto state = loadState();
+	StraightRun run;
+	if (!state || !findStraightRoadRun(*state, 8, run))
+	{
+		LogError("head-on scenario: no straight road run");
+		config().set("OpenApoc.NewFeature.TwoWayRoads", true);
+		config().set("OpenApoc.NewFeature.VehicleCollisions", false);
+		return result;
+	}
+
+	StateRef<VehicleType> vType{state.get(), UString("VEHICLETYPE_AUTOTRANS")};
+	auto &map = *state->current_city->map;
+	Vec3<int> first = run.tiles.front();
+	Vec3<int> last = run.tiles.back();
+
+	auto forward = state->current_city->placeVehicle(*state, vType, state->getPlayer(),
+	                                                 map.getTile(first)->getRestingPosition());
+	auto backward = state->current_city->placeVehicle(*state, vType, state->getPlayer(),
+	                                                  map.getTile(last)->getRestingPosition());
+	if (!forward || !backward)
+	{
+		LogError("head-on scenario: failed to place vehicles");
+		config().set("OpenApoc.NewFeature.TwoWayRoads", true);
+		config().set("OpenApoc.NewFeature.VehicleCollisions", false);
+		return result;
+	}
+
+	forward->setMission(*state, VehicleMission::gotoLocation(*state, *forward, last));
+	backward->setMission(*state, VehicleMission::gotoLocation(*state, *backward, first));
+
+	int forwardHealth = forward->getHealth();
+	int backwardHealth = backward->getHealth();
+
+	for (int i = 0; i < 400; i++)
+	{
+		state->update(TICKS_PER_SECOND / 4);
+		if (!forward->tileObject || !backward->tileObject)
+		{
+			break;
+		}
+		if (forward->getHealth() < forwardHealth)
+		{
+			result.forwardHits++;
+			forwardHealth = forward->getHealth();
+		}
+		if (backward->getHealth() < backwardHealth)
+		{
+			result.backwardHits++;
+			backwardHealth = backward->getHealth();
+		}
+	}
+
+	result.valid = true;
+	config().set("OpenApoc.NewFeature.TwoWayRoads", true);
+	config().set("OpenApoc.NewFeature.VehicleCollisions", false);
+	return result;
+}
+
+// Vehicles that drive into each other take damage once per contact, and only with the option on.
+void testVehicleCollisions()
+{
+	auto on = runHeadOnScenario(true);
+	if (!check(on.valid, "collisions: scenario ran with VehicleCollisions on"))
+	{
+		return;
+	}
+	LogWarning("collisions: VehicleCollisions on -> forwardHits = {0}, backwardHits = {1}",
+	           on.forwardHits, on.backwardHits);
+	check(on.forwardHits == 1 && on.backwardHits == 1,
+	      "collisions: both vehicles are damaged exactly once by the one contact");
+
+	auto off = runHeadOnScenario(false);
+	if (!check(off.valid, "collisions: scenario ran with VehicleCollisions off"))
+	{
+		return;
+	}
+	LogWarning("collisions: VehicleCollisions off -> forwardHits = {0}, backwardHits = {1}",
+	           off.forwardHits, off.backwardHits);
+	check(off.forwardHits == 0 && off.backwardHits == 0,
+	      "collisions: with the option off neither vehicle is damaged");
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -394,6 +492,7 @@ int main(int argc, char **argv)
 	testLaneSeparation();
 	testEnRouteBlocking();
 	testOvertaking();
+	testVehicleCollisions();
 
 	if (failures > 0)
 	{
