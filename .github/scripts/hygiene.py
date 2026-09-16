@@ -38,7 +38,7 @@ def plans(args: argparse.Namespace) -> int:
 def data(args: argparse.Namespace) -> int:
     paths = args.path or GENERATED_DATA_PATHS
     result = subprocess.run(
-        ["git", "status", "--short", "--", *paths],
+        ["git", "status", "--short", "--untracked-files=all", "--", *paths],
         cwd=args.workspace,
         check=True,
         text=True,
