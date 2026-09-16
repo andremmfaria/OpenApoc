@@ -20,6 +20,7 @@
 #include "game/ui/general/aequipscreen.h"
 #include "game/ui/skirmish/mapselector.h"
 #include "game/ui/skirmish/selectforces.h"
+#include <utility>
 namespace OpenApoc
 {
 
@@ -301,6 +302,14 @@ void Skirmish::setLocation(StateRef<Base> base)
 void Skirmish::goToBattle(bool customAliens, std::map<StateRef<AgentType>, int> aliens,
                           bool customGuards, int guards, bool customCivilians, int civilians)
 {
+	// A second OK press before the first load finishes would start another concurrent battle
+	// build against the same GameState, racing the first one on unsynchronised containers.
+	if (battleQueued || state.current_battle)
+	{
+		return;
+	}
+	battleQueued = true;
+
 	auto score = menuform->findControlTyped<ScrollBar>("ALIEN_SCORE_SLIDER")->getValue() * 1000;
 
 	// Create a temporary base
@@ -698,7 +707,10 @@ void Skirmish::resume()
 {
 	if (loadBattle)
 	{
-		loadBattle();
+		// Consume it: a later resume() must not replay a load that has already been launched.
+		auto load = std::move(loadBattle);
+		loadBattle = nullptr;
+		load();
 	}
 }
 
