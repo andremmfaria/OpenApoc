@@ -1,10 +1,15 @@
 #include "framework/configfile.h"
 #include "framework/framework.h"
 #include "framework/logger.h"
+#include "game/state/battle/battle.h"
+#include "game/state/battle/battledoor.h"
+#include "game/state/battle/battlescanner.h"
+#include "game/state/battle/battleunit.h"
 #include "game/state/city/base.h"
 #include "game/state/city/building.h"
 #include "game/state/city/city.h"
 #include "game/state/gamestate.h"
+#include "game/state/tilemap/tilemap.h"
 #include "game/ui/skirmish/skirmish.h"
 #include "library/sp.h"
 #include <algorithm>
@@ -143,6 +148,62 @@ static bool test_first_gotobattle_still_works(sp<GameState> state)
 	return true;
 }
 
+// A rejected Battle::beginBattle() used to be silent, so the losing skirmish loader carried on and
+// overwrote the winning battle's skirmish bookkeeping. It now reports failure instead.
+static bool test_beginbattle_refuses_while_a_battle_is_in_progress(sp<GameState> state)
+{
+	LogInfo("Testing that beginBattle reports failure while another battle is in progress...");
+
+	auto target = pickSkirmishTarget(state);
+	if (!target)
+	{
+		LogError("No human-city building with a battle map to use as a battle target");
+		return false;
+	}
+
+	auto existing = mksp<Battle>();
+	state->current_battle = existing;
+
+	std::list<StateRef<Agent>> agents;
+	StateRef<Vehicle> noVehicle;
+	bool started = Battle::beginBattle(*state, false, state->getAliens(), agents, nullptr, nullptr,
+	                                   nullptr, noVehicle, target);
+
+	// Mirrors what the skirmish loaders do once a battle really has started. Before beginBattle
+	// reported failure this block ran unconditionally, so a rejected load wrote its own
+	// bookkeeping over the battle that actually won the race.
+	if (started)
+	{
+		state->current_battle->skirmish = true;
+		state->current_battle->scoreBeforeSkirmish = state->totalScore.tacticalMissions;
+	}
+
+	bool passed = true;
+	if (started)
+	{
+		LogError("beginBattle reported success while another battle was in progress");
+		passed = false;
+	}
+	if (state->current_battle != existing)
+	{
+		LogError("beginBattle replaced the in-progress battle after refusing to start");
+		passed = false;
+	}
+	if (existing->skirmish)
+	{
+		LogError("A rejected battle load clobbered the in-progress battle's skirmish bookkeeping");
+		passed = false;
+	}
+
+	state->current_battle = nullptr;
+
+	if (passed)
+	{
+		LogInfo("beginBattle refused the second battle and left current_battle alone");
+	}
+	return passed;
+}
+
 int main(int argc, char **argv)
 {
 	OpenApoc::config().addPositionalArgument("common", "Common gamestate to load");
@@ -189,6 +250,10 @@ int main(int argc, char **argv)
 		failures++;
 	}
 	if (!test_first_gotobattle_still_works(state))
+	{
+		failures++;
+	}
+	if (!test_beginbattle_refuses_while_a_battle_is_in_progress(state))
 	{
 		failures++;
 	}

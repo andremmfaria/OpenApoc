@@ -64,8 +64,12 @@ std::shared_future<void> loadBattleBuilding(bool hotseat, sp<Building> building,
 		    const int *guardsRef = customGuards ? &guards : nullptr;
 		    const int *civiliansRef = customCivilians ? &civilians : nullptr;
 
-		    Battle::beginBattle(*state, hotseat, org, agents, aliensRef, guardsRef, civiliansRef,
-		                        veh, bld);
+		    if (!Battle::beginBattle(*state, hotseat, org, agents, aliensRef, guardsRef,
+		                             civiliansRef, veh, bld))
+		    {
+			    // current_battle belongs to whoever did start a battle - leave its bookkeeping be.
+			    return;
+		    }
 		    // Skirmish settings
 		    state->current_battle->skirmish = true;
 		    state->current_battle->scoreBeforeSkirmish = state->totalScore.tacticalMissions;
@@ -120,7 +124,11 @@ std::shared_future<void> loadBattleVehicle(bool hotseat, sp<VehicleType> vehicle
 			    agent->enterVehicle(*state, playerVehRef);
 		    }
 		    const std::map<StateRef<AgentType>, int> *aliensRef = customAliens ? &aliens : nullptr;
-		    Battle::beginBattle(*state, hotseat, org, agents, aliensRef, playerVehRef, ufo);
+		    if (!Battle::beginBattle(*state, hotseat, org, agents, aliensRef, playerVehRef, ufo))
+		    {
+			    // current_battle belongs to whoever did start a battle - leave its bookkeeping be.
+			    return;
+		    }
 		    // Skirmish settings
 		    state->current_battle->skirmish = true;
 		    state->current_battle->scoreBeforeSkirmish = state->totalScore.tacticalMissions;
