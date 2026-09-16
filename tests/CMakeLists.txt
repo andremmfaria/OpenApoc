@@ -22,8 +22,8 @@ target_link_libraries(${TEST} OpenApoc_Library OpenApoc_Framework
 		OpenApoc_GameState)
 target_compile_definitions(${TEST} PRIVATE -DUNIT_TEST)
 add_test(NAME ${TEST}_difficulty0 COMMAND ${TEST}
-		${CMAKE_SOURCE_DIR}/data/mods/base/data/submods/org.openapoc.base/difficulty0
-		${CMAKE_SOURCE_DIR}/data/mods/base/base_gamestate
+		${EXTRACTED_DATA_DIR}/mods/base/data/submods/org.openapoc.base/difficulty0
+		${EXTRACTED_DATA_DIR}/mods/base/base_gamestate
 		--Framework.CD=${CD_PATH} --Framework.Data=${CMAKE_SOURCE_DIR}/data)
 
 # test_lab_assignment requires args (same as test_serialize)
@@ -33,8 +33,8 @@ target_link_libraries(${TEST} OpenApoc_Library OpenApoc_Framework
 		OpenApoc_GameState)
 target_compile_definitions(${TEST} PRIVATE -DUNIT_TEST)
 add_test(NAME ${TEST} COMMAND ${TEST}
-		${CMAKE_SOURCE_DIR}/data/mods/base/data/submods/org.openapoc.base/difficulty0
-		${CMAKE_SOURCE_DIR}/data/mods/base/base_gamestate
+		${EXTRACTED_DATA_DIR}/mods/base/data/submods/org.openapoc.base/difficulty0
+		${EXTRACTED_DATA_DIR}/mods/base/base_gamestate
 		--Framework.CD=${CD_PATH} --Framework.Data=${CMAKE_SOURCE_DIR}/data)
 
 # test_gravlift_lof and test_gravlift_ai_battle are manual investigation
@@ -62,8 +62,27 @@ target_link_libraries(${TEST} OpenApoc_Library OpenApoc_Framework
 		OpenApoc_GameState)
 target_compile_definitions(${TEST} PRIVATE -DUNIT_TEST)
 
+# Standalone harness for crashed vehicle recovery throughput. Not wired to
+# add_test: it is a manually-run before/after comparison, not a regression gate.
+set(TEST test_crashed_vehicle_recovery)
+add_executable(${TEST} ${TEST}.cpp)
+target_link_libraries(${TEST} OpenApoc_Library OpenApoc_Framework
+		OpenApoc_GameState)
+target_compile_definitions(${TEST} PRIVATE -DUNIT_TEST)
+
 # test_city_dimension_gate requires args (same as test_serialize)
 set(TEST test_city_dimension_gate)
+add_executable(${TEST} ${TEST}.cpp)
+target_link_libraries(${TEST} OpenApoc_Library OpenApoc_Framework
+		OpenApoc_GameState)
+target_compile_definitions(${TEST} PRIVATE -DUNIT_TEST)
+add_test(NAME ${TEST} COMMAND ${TEST}
+		${CMAKE_SOURCE_DIR}/data/mods/base/data/submods/org.openapoc.base/difficulty0
+		${CMAKE_SOURCE_DIR}/data/mods/base/base_gamestate
+		--Framework.CD=${CD_PATH} --Framework.Data=${CMAKE_SOURCE_DIR}/data)
+
+# test_org_relations requires args (same as test_serialize)
+set(TEST test_org_relations)
 add_executable(${TEST} ${TEST}.cpp)
 target_link_libraries(${TEST} OpenApoc_Library OpenApoc_Framework
 		OpenApoc_GameState)
