@@ -109,6 +109,11 @@ class GroundVehicleTileHelper : public CanEnterTileHelper
 	// "to", or nullptr when the road ahead is clear.
 	static sp<Vehicle> sameLaneTrafficAhead(const Vehicle &v, const Vec3<int> &from,
 	                                        const Tile &to);
+
+	// Whether "v", driving from "from" along "path" (whose front is the next tile), may spend the
+	// next "tiles" hops on the opposing lane to pass something.
+	static bool canUseOpposingLane(const Vehicle &v, const Vec3<int> &from,
+	                               const std::list<Vec3<int>> &path, int tiles);
 };
 
 class VehicleTargetHelper
@@ -310,6 +315,10 @@ class VehicleMission
 	// Deliberately not serialized: a save made mid-hold simply restarts the wait on load, which
 	// is at most a couple of seconds of a vehicle sitting still.
 	uint64_t trafficHoldStartTicks = 0;
+	// Hops still to be driven on the opposing lane to finish passing a slower vehicle. Serialized,
+	// because a save taken mid-pass has to resume on the far side of the road rather than merge
+	// back through the vehicle being passed.
+	int overtakeTilesRemaining = 0;
 
 	std::list<Vec3<int>> currentPlannedPath;
 };

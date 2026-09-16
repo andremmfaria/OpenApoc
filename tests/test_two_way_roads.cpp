@@ -60,7 +60,8 @@ struct StraightRun
 
 // Uses the game's own passability helper rather than reimplementing road connectivity, so the
 // run found here is one real pathfinding would also accept.
-bool findStraightRoadRun(GameState &state, int minLength, StraightRun &out)
+bool findStraightRoadRun(GameState &state, int minLength, StraightRun &out,
+                         bool straightTilesOnly = false)
 {
 	auto &map = *state.current_city->map;
 	GroundVehicleTileHelper helper(map, VehicleType::Type::Road);
@@ -79,6 +80,11 @@ bool findStraightRoadRun(GameState &state, int minLength, StraightRun &out)
 				{
 					continue;
 				}
+				if (straightTilesOnly && startTile->presentScenery->type->road_type !=
+				                             SceneryTileType::RoadType::StraightBend)
+				{
+					continue;
+				}
 				for (const auto &dir : axes)
 				{
 					std::vector<Vec3<int>> run = {start};
@@ -91,6 +97,13 @@ bool findStraightRoadRun(GameState &state, int minLength, StraightRun &out)
 							break;
 						}
 						if (!helper.canEnterTile(map.getTile(cur), map.getTile(next)))
+						{
+							break;
+						}
+						auto nextTile = map.getTile(next);
+						if (straightTilesOnly && (!nextTile->presentScenery ||
+						                          nextTile->presentScenery->type->road_type !=
+						                              SceneryTileType::RoadType::StraightBend))
 						{
 							break;
 						}
@@ -203,12 +216,15 @@ struct FollowerRun
 	int opposingLaneSamples = 0;
 	// Updates on which the two were close enough for the follower to be queueing at all.
 	int closeSamples = 0;
+	// The follower went back to the leader's side of the road after using the other one.
+	bool mergedBack = false;
 	bool followerAhead = false;
 };
 
 // Puts a slow leader one tile in front of a faster follower on a straight road and sends both to
 // the far end of it, recording how the follower behaves while it is caught up behind the leader.
-FollowerRun runFollowerScenario(bool twoWayRoads, int runLength, int updates)
+FollowerRun runFollowerScenario(bool twoWayRoads, int runLength, int updates,
+                                bool straightTilesOnly = false)
 {
 	FollowerRun result;
 
@@ -221,7 +237,7 @@ FollowerRun runFollowerScenario(bool twoWayRoads, int runLength, int updates)
 	}
 
 	StraightRun run;
-	if (!findStraightRoadRun(*state, runLength, run))
+	if (!findStraightRoadRun(*state, runLength, run, straightTilesOnly))
 	{
 		LogError("follower scenario: no straight road run of {0} tiles", runLength);
 		return result;
@@ -291,6 +307,10 @@ FollowerRun runFollowerScenario(bool twoWayRoads, int runLength, int updates)
 		{
 			result.opposingLaneSamples++;
 		}
+		else if (result.opposingLaneSamples > 0 && followerLateral * leaderLateral > 0.01f)
+		{
+			result.mergedBack = true;
+		}
 		if (followerTile == leaderTile && leaderMoving && !opposingLanes)
 		{
 			result.sameLaneOverlaps++;
@@ -331,6 +351,23 @@ void testEnRouteBlocking()
 	      "en-route blocking: with the option off the follower drives through the leader");
 }
 
+// A faster vehicle stuck behind a slower one on a clear straight must pass it on the other side
+// of the road and then pull back in.
+void testOvertaking()
+{
+	auto on = runFollowerScenario(true, 16, 900, true);
+	if (!check(on.valid, "overtaking: scenario ran with TwoWayRoads on"))
+	{
+		return;
+	}
+	LogWarning("overtaking: TwoWayRoads on -> opposingLaneSamples = {0}, mergedBack = {1}, "
+	           "followerAhead = {2}",
+	           on.opposingLaneSamples, on.mergedBack, on.followerAhead);
+	check(on.opposingLaneSamples > 0, "overtaking: the follower used the opposing lane");
+	check(on.mergedBack, "overtaking: the follower merged back into its own lane");
+	check(on.followerAhead, "overtaking: the follower finished the pass in front of the leader");
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -356,6 +393,7 @@ int main(int argc, char **argv)
 
 	testLaneSeparation();
 	testEnRouteBlocking();
+	testOvertaking();
 
 	if (failures > 0)
 	{

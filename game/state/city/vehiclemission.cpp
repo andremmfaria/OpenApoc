@@ -60,6 +60,11 @@ static const std::map<UString, std::pair<unsigned, unsigned>> selfDestructTimer 
 // Well over the time the slowest road vehicle needs to clear the tile ahead of a follower, so a
 // queue that is genuinely moving never trips it.
 static const uint64_t trafficHoldMaxTicks = 8 * TICKS_PER_SECOND;
+// How long a vehicle puts up with being stuck behind slower traffic before pulling out to pass.
+static const uint64_t overtakeHoldTicks = TICKS_PER_SECOND / 2;
+// Hops spent on the opposing lane during a pass: enough to clear the vehicle being passed plus
+// the ground it covers while the pass is under way.
+static const int overtakeTiles = 4;
 } // namespace
 
 FlyingVehicleTileHelper::FlyingVehicleTileHelper(TileMap &map, const Vehicle &v)
@@ -2966,15 +2971,25 @@ bool VehicleMission::advanceAlongPath(GameState &state, Vehicle &v, Vec3<float> 
 
 	// Queue behind traffic already using our lane instead of driving through it. This has to run
 	// after the shortcut above, which is what settles on the tile actually being driven to.
-	if (v.type->isGround())
+	if (v.type->isGround() && overtakeTilesRemaining == 0)
 	{
-		if (GroundVehicleTileHelper::sameLaneTrafficAhead(v, tFrom->position, *tTo))
+		auto blocker = GroundVehicleTileHelper::sameLaneTrafficAhead(v, tFrom->position, *tTo);
+		if (blocker)
 		{
 			if (trafficHoldStartTicks == 0)
 			{
 				trafficHoldStartTicks = state.gameTime.getTicks();
 			}
-			if (state.gameTime.getTicks() - trafficHoldStartTicks < trafficHoldMaxTicks)
+			uint64_t held = state.gameTime.getTicks() - trafficHoldStartTicks;
+			if (held >= overtakeHoldTicks && v.getSpeed() > blocker->getSpeed() &&
+			    GroundVehicleTileHelper::canUseOpposingLane(v, tFrom->position, currentPlannedPath,
+			                                                overtakeTiles))
+			{
+				// Stuck behind something we can out-run, with room to get by: pull out and pass.
+				overtakeTilesRemaining = overtakeTiles;
+				trafficHoldStartTicks = 0;
+			}
+			else if (held < trafficHoldMaxTicks)
 			{
 				// Hold position for this update. Putting the tile we are standing on back at the
 				// front of the path leaves it exactly as a fresh call expects to find it, so the
@@ -2982,8 +2997,11 @@ bool VehicleMission::advanceAlongPath(GameState &state, Vehicle &v, Vec3<float> 
 				currentPlannedPath.push_front(tFrom->position);
 				return false;
 			}
-			// Waited long enough for a blocker that is not going to move. Drive on as before.
-			trafficHoldStartTicks = 0;
+			else
+			{
+				// Waited long enough for a blocker that is not going to move. Drive on as before.
+				trafficHoldStartTicks = 0;
+			}
 		}
 		else
 		{
@@ -3021,10 +3039,18 @@ bool VehicleMission::advanceAlongPath(GameState &state, Vehicle &v, Vec3<float> 
 	if (v.type->isGround())
 	{
 		destPos = tTo->getRestingPosition();
+		Vec3<float> lane{0.0f, 0.0f, 0.0f};
 		if (sceneryTo)
 		{
-			destPos += GroundVehicleTileHelper::laneOffset(tFrom->position, pos, *sceneryTo, v);
+			lane = GroundVehicleTileHelper::laneOffset(tFrom->position, pos, *sceneryTo, v);
 		}
+		if (overtakeTilesRemaining > 0)
+		{
+			// Mid-pass, so this hop belongs on the opposing lane.
+			overtakeTilesRemaining--;
+			lane = -lane;
+		}
+		destPos += lane;
 	}
 	else
 	{
@@ -3692,6 +3718,65 @@ sp<Vehicle> GroundVehicleTileHelper::sameLaneTrafficAhead(const Vehicle &v, cons
 		}
 	}
 	return nullptr;
+}
+
+bool GroundVehicleTileHelper::canUseOpposingLane(const Vehicle &v, const Vec3<int> &from,
+                                                 const std::list<Vec3<int>> &path, int tiles)
+{
+	if (!v.tileObject || path.empty())
+	{
+		return false;
+	}
+	auto &map = v.tileObject->getOwningTile()->map;
+	Vec3<int> dir = path.front() - from;
+	Vec2<float> dirXY = {(float)dir.x, (float)dir.y};
+	Vec3<int> prev = from;
+	int checked = 0;
+	for (const auto &p : path)
+	{
+		if (checked == tiles)
+		{
+			break;
+		}
+		// A pass only works along an unbroken straight. A bend would leave the vehicle on the
+		// outside of a corner and a junction would put it into cross traffic.
+		if (p - prev != dir)
+		{
+			return false;
+		}
+		auto tile = map.getTile(p);
+		if (!tile || !tile->presentScenery)
+		{
+			return false;
+		}
+		auto &sceneryType = *tile->presentScenery->type;
+		if (sceneryType.tile_type != SceneryTileType::TileType::Road ||
+		    sceneryType.road_type != SceneryTileType::RoadType::StraightBend)
+		{
+			return false;
+		}
+		for (auto &obj : tile->ownedObjects)
+		{
+			if (obj->getType() != TileObject::Type::Vehicle)
+			{
+				continue;
+			}
+			auto other = std::static_pointer_cast<TileObjectVehicle>(obj)->getVehicle();
+			if (!other || other.get() == &v || !other->type->isGround() || other->crashed)
+			{
+				continue;
+			}
+			// Anything coming the other way is using the lane we want to borrow.
+			if (dirXY.x * other->velocity.x + dirXY.y * other->velocity.y < 0.0f)
+			{
+				return false;
+			}
+		}
+		prev = p;
+		checked++;
+	}
+	// A window shorter than the pass needs is no window at all.
+	return checked == tiles;
 }
 
 } // namespace OpenApoc
