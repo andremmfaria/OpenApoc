@@ -257,6 +257,7 @@ int main(int argc, char **argv)
 	{
 		return EXIT_FAILURE;
 	}
+	config().set("OpenApoc.NewFeature.RescueCrashedVehicles", true);
 
 	auto commonPath = config().getString("common");
 	auto gamestatePath = config().getString("gamestate");
