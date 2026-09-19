@@ -465,6 +465,7 @@ void Organisation::dispatchRescueCraft(GameState &state, std::set<UString> &clai
 			}
 			if (v->second->city == rescueTransport->city && v->second->owner.id == id &&
 			    claimedVictims.find(*it) == claimedVictims.end() &&
+			    state.gameTime.getTicks() >= v->second->rescueAvailableTick &&
 			    VehicleMission::canRecoverVehicle(state, *rescueTransport, *v->second))
 			{
 				target = {&state, *it};
@@ -487,6 +488,7 @@ void Organisation::dispatchRescueCraft(GameState &state, std::set<UString> &clai
 				    v->second->owner != state.getAliens() && v->second->owner.id != id &&
 				    isRelatedTo(v->second->owner) == Relation::Allied &&
 				    claimedVictims.find(*it) == claimedVictims.end() &&
+				    state.gameTime.getTicks() >= v->second->rescueAvailableTick &&
 				    VehicleMission::canRecoverVehicle(state, *rescueTransport, *v->second))
 				{
 					target = {&state, *it};

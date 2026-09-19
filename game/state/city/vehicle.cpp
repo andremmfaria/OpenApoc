@@ -1474,10 +1474,13 @@ void Vehicle::setCrashed(GameState &state, bool crashed)
 		auto ref = StateRef<Vehicle>{&state, shared_from_this()};
 		if (crashed)
 		{
+			rescueAvailableTick = state.gameTime.getTicks() +
+			                      randBoundsInclusive(state.rng, 60, 600) * TICKS_PER_SECOND;
 			state.crashedVehicles.insert(ref.id);
 		}
 		else
 		{
+			rescueAvailableTick = 0;
 			state.crashedVehicles.erase(ref.id);
 		}
 	}
@@ -1965,6 +1968,8 @@ void Vehicle::crash(GameState &state, StateRef<Vehicle> attacker)
 	}
 	// Actually crash
 	crashed = true;
+	rescueAvailableTick =
+	    state.gameTime.getTicks() + randBoundsInclusive(state.rng, 60, 600) * TICKS_PER_SECOND;
 	state.crashedVehicles.insert(StateRef<Vehicle>{&state, shared_from_this()}.id);
 	health = std::min(health, (type->crash_health > 0) ? type->crash_health : type->health / 10);
 	switch (type->type)

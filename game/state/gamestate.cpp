@@ -1110,7 +1110,8 @@ void GameState::update(unsigned int ticks)
 					continue;
 				}
 				if (!v->second->carriedByVehicle && !v->second->isDead() &&
-				    v->second->owner != this->getAliens())
+				    v->second->owner != this->getAliens() &&
+				    this->gameTime.getTicks() >= v->second->rescueAvailableTick)
 				{
 					rescueDispatchNeeded = true;
 				}

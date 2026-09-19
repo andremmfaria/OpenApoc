@@ -193,6 +193,7 @@ ScenarioResult runScenario(sp<GameState> state, int numRescuers, int numVictims,
 		auto v = state->current_city->placeVehicle(*state, craftType, org, spawnPosF, 0.0f);
 		v->homeBuilding = homeBuilding;
 		v->crash(*state, {});
+		v->rescueAvailableTick = 0;
 		victims.push_back(v);
 	}
 
